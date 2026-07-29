@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TallyBridge Executive Dashboard
 
-## Getting Started
+A standalone Next.js App Router dashboard for read-only executive accounting analysis. This repository is intentionally separate from the Electron sync application at `../tallyBridge`.
 
-First, run the development server:
+## Setup
 
 ```bash
+cp .env.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Set only these public variables in `.env.local`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The publishable key is safe for browser use because every `tb_*` table is protected by Supabase RLS. Never add a service-role key to this project.
 
-## Learn More
+## Data and security model
 
-To learn more about Next.js, take a look at the following resources:
+The dashboard authenticates with Supabase SSR cookies and refreshes sessions in `src/middleware.ts`. Every server query is made through the authenticated SSR client. Organization membership and company scope are resolved before accounting data is requested. The UI does not expose insert, update, or delete operations.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Apply `supabase/migrations/20260727000000_dashboard_read_contracts.sql` after the existing TallyBridge schema migration. The security-invoker functions are for future database-side aggregation; they preserve the existing RLS boundary and exclude cancelled/deleted vouchers through the canonical ledger view semantics.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Design foundation
 
-## Deploy on Vercel
+- Astryx core and neutral theme `0.1.8`, initialized with `npx @astryxdesign/cli init`.
+- Taste (`design-taste-frontend-v1`) and Hallmark guidance installed under `.agents/skills/`.
+- Recharts is used only for chart rendering; each chart has a text legend or numeric KPI companion.
+- The app is light-only, uses Geist and Geist Mono, `en-IN` INR formatting, and responsive layouts at mobile/tablet/desktop widths.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Useful Astryx commands used during setup:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx astryx template dashboard
+npx astryx search "stat card"
+npx astryx docs tokens
+npx astryx docs theme
+```
+
+## Quality checks
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+## Known integration boundary
+
+The current dashboard query façade uses bounded, RLS-filtered reads to make the shell usable against the existing schema. For high-volume production data, wire `src/lib/data.ts` to the provided aggregate RPCs and add a cursor-based `/api/ledger` handler for drawer pages. The migration and UI already separate those concerns so no client-side service key or unbounded history fetch is needed.
