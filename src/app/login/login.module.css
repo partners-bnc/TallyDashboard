@@ -1,23 +1,58 @@
-/* Hallmark · component: sign-in form · genre: modern-minimal · theme: neutral
- * states: default · hover · focus · active · disabled · loading · error · success
- * contrast: pass
- */
-.page { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(280px, .95fr); background: var(--background); }
-.panel { width: min(520px, 100%); padding: clamp(32px, 8vw, 96px); display: grid; align-content: center; gap: 48px; }
-.brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
-.mark { width: 30px; height: 30px; display: grid; place-items: center; color: white; background: var(--accent); border-radius: 9px; font: 600 11px var(--font-geist-mono), monospace; letter-spacing: -.08em; }
-.kicker { margin: 0 0 12px; color: var(--accent); font: 600 11px var(--font-geist-mono), monospace; text-transform: uppercase; letter-spacing: .16em; }
-.panel h1 { margin: 0; max-width: 9ch; font-size: clamp(42px, 6vw, 72px); line-height: .98; letter-spacing: -.065em; font-weight: 680; }
-.lede { max-width: 39ch; margin: 20px 0 0; color: var(--muted); line-height: 1.65; }
-.form { display: grid; gap: 18px; }
-.form label { display: grid; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 600; }
-.form input { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--paper); color: var(--foreground); }
-.form input:hover { border-color: oklch(72% .04 245); }
-.error { margin: 0; color: var(--negative); font-size: 13px; }
-.note { margin: -24px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.aside { padding: clamp(32px, 8vw, 96px); display: grid; align-content: end; gap: 18px; background: var(--accent); color: white; }
-.asideRule { width: 42px; height: 3px; background: oklch(100% 0 0 / .7); }
-.aside p { margin: 0; opacity: .72; font: 600 11px var(--font-geist-mono), monospace; text-transform: uppercase; letter-spacing: .16em; }
-.aside strong { max-width: 11ch; font-size: clamp(32px, 4vw, 58px); line-height: 1; letter-spacing: -.06em; }
-.aside span { max-width: 28ch; color: oklch(100% 0 0 / .72); line-height: 1.6; }
-@media (max-width: 720px) { .page { display: block; } .panel { min-height: 100dvh; padding: 28px 20px; gap: 64px; } .aside { display: none; } }
+/* Premium Login UI Overhaul Stylesheet */
+
+.page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  background: var(--background);
+}
+
+.panel {
+  width: 100%;
+  padding: clamp(32px, 8vw, 96px);
+  display: grid;
+  align-content: center;
+  justify-content: center;
+  background: var(--paper);
+  position: relative; /* Anchor for absolute positioned elements like logo */
+}
+
+.aside {
+  padding: clamp(48px, 8vw, 96px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: linear-gradient(135deg, var(--accent) 0%, oklch(35% 0.1 245) 100%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle decorative glow orb for the right panel */
+.aside::after {
+  content: '';
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: oklch(75% 0.15 220 / 0.15);
+  filter: blur(64px);
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+  
+  .panel {
+    min-height: 100dvh;
+    padding: 32px 20px;
+  }
+  
+  .aside {
+    display: none;
+  }
+}
