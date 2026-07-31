@@ -17,7 +17,21 @@ export interface Database {
     Views: {
       tb_ledger_voucher_lines: View<{ company_id: string | null; ledger_id: string | null; ledger_name: string | null; voucher_ledger_entry_id: string | null; line_number: number | null; voucher_id: string | null; voucher_date: string | null; voucher_type: string | null; voucher_number: string | null; particulars: string | null; debit_amount: number | null; credit_amount: number | null; running_balance: number | null }>
     }
-    Functions: { tb_is_member: { Args: { target_org: string }; Returns: boolean } }
+    Functions: {
+      tb_is_member: { Args: { target_org: string }; Returns: boolean }
+      tb_dashboard_movement_totals: {
+        Args: { target_company: string; from_date?: string | null; to_date?: string | null }
+        Returns: { voucher_count: number; debit_total: number; credit_total: number }[]
+      }
+      tb_dashboard_monthly_movement: {
+        Args: { target_company: string; from_date?: string | null; to_date?: string | null }
+        Returns: { period: string; debit_total: number; credit_total: number }[]
+      }
+      tb_dashboard_voucher_type_counts: {
+        Args: { target_company: string; from_date?: string | null; to_date?: string | null }
+        Returns: { voucher_type: string; voucher_count: number }[]
+      }
+    }
   }
 }
 
