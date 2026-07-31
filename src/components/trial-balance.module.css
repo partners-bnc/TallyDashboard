@@ -1,0 +1,34 @@
+.shell { width: min(1400px, 100%); margin: 0 auto; padding: 24px clamp(20px, 5vw, 72px) 96px; }
+.header { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; padding:16px 0 28px; border-bottom:1px solid var(--rule); margin-bottom:24px; flex-wrap:wrap; }
+.header h1 { margin:4px 0; font-size:clamp(24px, 4vw, 38px); letter-spacing:-.05em; font-weight:500; }
+.header p { margin:0; color:var(--muted); font-size:13px; }
+.eyebrow { color:var(--accent); font:600 10px var(--font-geist-mono),monospace; text-transform:uppercase; letter-spacing:.15em; }
+.backButton { display:inline-flex; align-items:center; gap:8px; padding:8px 16px; border:1px solid var(--rule); border-radius:9999px; background:var(--paper); color:var(--foreground); font-size:13px; font-weight:600; cursor:pointer; }
+.backButton:hover { border-color:var(--accent); color:var(--accent); }
+.periodForm { display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; }
+.periodForm label { display:grid; gap:5px; color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+.periodForm input { height:38px; padding:0 10px; border:1px solid var(--rule); border-radius:9999px; background:var(--paper); color:var(--foreground); font-size:12px; }
+.periodForm button { height:38px; padding:0 16px; border:1px solid var(--accent); border-radius:9999px; background:var(--accent); color:white; font-size:12px; font-weight:600; cursor:pointer; }
+.warning,.state { padding:28px; border:1px dashed var(--rule); border-radius:var(--radius-md); background:var(--paper); color:var(--muted); text-align:center; }
+.warning { margin-bottom:20px; border-color:var(--negative); color:var(--negative); text-align:left; }
+.error { border-color:var(--negative); color:var(--negative); }
+.tableWrap { overflow:auto; border:1px solid var(--rule); border-radius:var(--radius-md); background:var(--paper); box-shadow:var(--shadow-soft); }
+.tableHead,.groupRow,.ledgerRow,.totalRow { display:grid; grid-template-columns:minmax(220px,1fr) 180px 180px; min-width:620px; align-items:center; }
+.tableHead { padding:13px 20px; background:var(--accent-soft); color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+.tableHead span:not(:first-child),.groupRow span:not(:first-child),.groupRow strong:not(:first-child),.ledgerRow span:not(:first-child),.totalRow strong:not(:first-child) { text-align:right; }
+.groupRow { padding:15px 20px 10px; border-top:1px solid var(--rule); color:var(--foreground); background:color-mix(in oklch, var(--accent-soft) 35%, white); }
+.ledgerRow { width:100%; padding:12px 20px 12px 36px; border:0; border-top:1px solid var(--rule); background:var(--paper); color:var(--muted); text-align:left; cursor:pointer; font-size:13px; }
+.ledgerRow:hover { background:var(--accent-soft); color:var(--foreground); }
+.totalRow { padding:16px 20px; border-top:2px solid var(--foreground); background:var(--paper); color:var(--foreground); }
+.monthHead,.monthRow { display:grid; grid-template-columns:minmax(180px,1.3fr) repeat(3,minmax(140px,1fr)); min-width:720px; align-items:center; }
+.monthHead { padding:13px 20px; background:var(--accent-soft); color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; }
+.monthHead span:not(:first-child),.monthRow span:not(:first-child),.monthRow span:last-child,.totalRow strong:not(:first-child) { text-align:right; }
+.monthRow { padding:14px 20px; border-top:1px solid var(--rule); color:var(--foreground); font-size:13px; }
+.monthTotalRow { display:grid; grid-template-columns:minmax(180px,1.3fr) repeat(3,minmax(140px,1fr)); min-width:720px; align-items:center; padding:16px 20px; border-top:2px solid var(--foreground); background:var(--paper); color:var(--foreground); }
+.monthTotalRow strong:not(:first-child) { text-align:right; }
+.chartPanel { margin-top:24px; padding:20px; border:1px solid var(--rule); border-radius:var(--radius-md); background:var(--paper); }
+.panelTitle { display:flex; align-items:center; gap:8px; font-weight:700; }
+.chart { height:300px; margin-top:20px; }
+.legend { display:flex; gap:18px; justify-content:center; color:var(--muted); font-size:12px; }
+.legend span { display:inline-flex; align-items:center; gap:6px; }.legend i { width:8px; height:8px; border-radius:50%; }.debitDot { background:var(--accent); }.creditDot { background:var(--positive); }.spin { animation:spin 1s linear infinite; } @keyframes spin { to { transform:rotate(360deg); } }
+@media (max-width:700px) { .periodForm { width:100%; }.periodForm label { flex:1; min-width:130px; }.periodForm input { width:100%; }.periodForm button { width:100%; }.header { align-items:stretch; } }

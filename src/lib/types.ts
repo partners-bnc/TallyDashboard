@@ -31,6 +31,14 @@ export interface Database {
         Args: { target_company: string; from_date?: string | null; to_date?: string | null }
         Returns: { voucher_type: string; voucher_count: number }[]
       }
+      tb_trial_balance: {
+        Args: { target_company: string; from_date?: string | null; to_date?: string | null }
+        Returns: { ledger_id: string; ledger_name: string; parent_name: string | null; closing_balance: number; debit_balance: number; credit_balance: number }[]
+      }
+      tb_ledger_monthly_summary: {
+        Args: { target_company: string; target_ledger: string; from_date?: string | null; to_date?: string | null }
+        Returns: { ledger_id: string; ledger_name: string; parent_name: string | null; period: string; debit_total: number; credit_total: number; closing_balance: number }[]
+      }
     }
   }
 }
@@ -46,4 +54,43 @@ export type DashboardData = {
   recentVouchers: { id: string; date: string; type: string; number: string | null; party: string | null; amount: number }[]
   ledgers: Ledger[]
   sync: { status: string | null; lastSyncedAt: string | null; error: string | null }
+}
+
+export type TrialBalanceLedgerRow = {
+  ledgerId: string
+  ledgerName: string
+  parentName: string
+  closingBalance: number
+  debitBalance: number
+  creditBalance: number
+}
+
+export type TrialBalanceGroupRow = {
+  name: string
+  debitBalance: number
+  creditBalance: number
+  ledgers: TrialBalanceLedgerRow[]
+}
+
+export type TrialBalanceData = {
+  groups: TrialBalanceGroupRow[]
+  totalDebit: number
+  totalCredit: number
+  sync: { status: string | null; error: string | null }
+}
+
+export type LedgerMonthlyMovement = {
+  period: string
+  debit: number
+  credit: number
+  closingBalance: number
+}
+
+export type LedgerMonthlyData = {
+  ledgerId: string
+  ledgerName: string
+  parentName: string
+  months: LedgerMonthlyMovement[]
+  totalDebit: number
+  totalCredit: number
 }

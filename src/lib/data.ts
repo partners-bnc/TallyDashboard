@@ -1,7 +1,17 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import type { Company, DashboardData, Ledger, Organization, VoucherLine } from '@/lib/types'
+import type { Company, DashboardData, Ledger, LedgerMonthlyData, Organization, TrialBalanceData, TrialBalanceLedgerRow, VoucherLine } from '@/lib/types'
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0)
+
+export function groupTrialBalanceRows(rows: Array<{ ledger_id: string; ledger_name: string; parent_name: string | null; closing_balance: number | string | null; debit_balance: number | string | null; credit_balance: number | string | null }>) {
+  const groups = new Map<string, TrialBalanceLedgerRow[]>()
+  for (const row of rows) {
+    const ledger: TrialBalanceLedgerRow = { ledgerId: row.ledger_id, ledgerName: row.ledger_name, parentName: row.parent_name ?? 'Unassigned', closingBalance: asNumber(row.closing_balance), debitBalance: asNumber(row.debit_balance), creditBalance: asNumber(row.credit_balance) }
+    if (ledger.debitBalance === 0 && ledger.creditBalance === 0) continue
+    groups.set(ledger.parentName, [...(groups.get(ledger.parentName) ?? []), ledger])
+  }
+  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, ledgers]) => ({ name, ledgers: ledgers.sort((a, b) => a.ledgerName.localeCompare(b.ledgerName)), debitBalance: ledgers.reduce((sum, row) => sum + row.debitBalance, 0), creditBalance: ledgers.reduce((sum, row) => sum + row.creditBalance, 0) }))
+}
 
 export async function listOrganizations(): Promise<Organization[]> {
   const supabase = await createSupabaseServerClient()
@@ -70,4 +80,81 @@ export async function searchLedgerLines(companyId: string, ledgerId: string, sea
   if (ledgerResult.error || linesResult.error) throw new Error('Could not load ledger detail')
   const lines = ((linesResult.data ?? []) as VoucherLine[]).filter((line) => !search || `${line.particulars ?? ''} ${line.voucher_number ?? ''} ${line.voucher_type ?? ''}`.toLowerCase().includes(search.toLowerCase()))
   return { ledger: ledgerResult.data as Ledger | null, lines, hasMore: (linesResult.data?.length ?? 0) === 50 }
+}
+
+export async function getTrialBalanceData(companyId: string, from?: string, to?: string): Promise<TrialBalanceData> {
+  const supabase = await createSupabaseServerClient()
+  const [balanceResult, syncResult, companyResult] = await Promise.all([
+    supabase.rpc('tb_trial_balance', { target_company: companyId, from_date: from ?? null, to_date: to ?? null }),
+    supabase.from('tb_company_sync_state').select('last_error').eq('company_id', companyId).maybeSingle(),
+    supabase.from('tb_companies').select('last_sync_status,last_sync_error').eq('id', companyId).maybeSingle(),
+  ])
+  if (syncResult.error || companyResult.error) throw new Error('Could not load sync status')
+
+  let balanceRows = balanceResult.data ?? []
+  if (balanceResult.error) {
+    // Keep the page usable while a deployment is catching up with the RPC migration.
+    // Both fallback reads are still company-scoped and remain subject to Supabase RLS.
+    let linesQuery = supabase.from('tb_ledger_voucher_lines').select('company_id,ledger_id,ledger_name,voucher_date,debit_amount,credit_amount').eq('company_id', companyId)
+    if (to) linesQuery = linesQuery.lte('voucher_date', to)
+    const [ledgersResult, linesResult] = await Promise.all([
+      supabase.from('tb_ledgers').select('id,name,parent_name,opening_balance').eq('company_id', companyId).eq('is_deleted', false).order('name'),
+      linesQuery,
+    ])
+    if (ledgersResult.error || linesResult.error) throw new Error(`Could not load Trial Balance: ${balanceResult.error.message}`)
+    const movementByLedger = new Map<string, number>()
+    for (const line of linesResult.data ?? []) movementByLedger.set(line.ledger_id ?? '', (movementByLedger.get(line.ledger_id ?? '') ?? 0) + asNumber(line.credit_amount) - asNumber(line.debit_amount))
+    balanceRows = (ledgersResult.data ?? []).map((ledger) => {
+      const closing = asNumber(ledger.opening_balance) + (movementByLedger.get(ledger.id) ?? 0)
+      return { ledger_id: ledger.id, ledger_name: ledger.name, parent_name: ledger.parent_name, closing_balance: closing, debit_balance: Math.max(-closing, 0), credit_balance: Math.max(closing, 0) }
+    })
+  }
+  const groupRows = groupTrialBalanceRows(balanceRows)
+  const syncError = syncResult.data?.last_error ?? companyResult.data?.last_sync_error ?? null
+  return { groups: groupRows, totalDebit: groupRows.reduce((sum, row) => sum + row.debitBalance, 0), totalCredit: groupRows.reduce((sum, row) => sum + row.creditBalance, 0), sync: { status: syncError ? 'error' : companyResult.data?.last_sync_status ?? null, error: syncError } }
+}
+
+export async function getLedgerMonthlyData(companyId: string, ledgerId: string, from?: string, to?: string): Promise<LedgerMonthlyData | null> {
+  const supabase = await createSupabaseServerClient()
+  const ledgerResult = await supabase.from('tb_ledgers').select('id,name,parent_name,opening_balance').eq('id', ledgerId).eq('company_id', companyId).eq('is_deleted', false).maybeSingle()
+  if (ledgerResult.error) throw new Error(`Could not load ledger: ${ledgerResult.error.message}`)
+  if (!ledgerResult.data) return null
+
+  const { data, error } = await supabase.rpc('tb_ledger_monthly_summary', { target_company: companyId, target_ledger: ledgerId, from_date: from ?? null, to_date: to ?? null })
+  let rows = data ?? []
+  if (error) {
+    let linesQuery = supabase.from('tb_ledger_voucher_lines').select('voucher_date,debit_amount,credit_amount').eq('company_id', companyId).eq('ledger_id', ledgerId)
+    if (from) linesQuery = linesQuery.gte('voucher_date', from)
+    if (to) linesQuery = linesQuery.lte('voucher_date', to)
+    const linesResult = await linesQuery.order('voucher_date')
+    if (linesResult.error) throw new Error(`Could not load ledger monthly summary: ${error.message}`)
+    const lines = linesResult.data ?? []
+    const firstDate = from ?? lines[0]?.voucher_date ?? null
+    const lastDate = to ?? lines.at(-1)?.voucher_date ?? null
+    if (firstDate && lastDate) {
+      const start = new Date(`${firstDate.slice(0, 7)}-01T00:00:00Z`)
+      const end = new Date(`${lastDate.slice(0, 7)}-01T00:00:00Z`)
+      const monthRows: typeof rows = []
+      for (const cursor = new Date(start); cursor <= end; cursor.setUTCMonth(cursor.getUTCMonth() + 1)) {
+        const period = cursor.toISOString().slice(0, 10)
+        const next = new Date(cursor); next.setUTCMonth(next.getUTCMonth() + 1)
+        const monthLines = lines.filter((line) => (line.voucher_date ?? '') >= period && (line.voucher_date ?? '') < next.toISOString().slice(0, 10))
+        const debit = monthLines.reduce((sum, line) => sum + asNumber(line.debit_amount), 0)
+        const credit = monthLines.reduce((sum, line) => sum + asNumber(line.credit_amount), 0)
+        const throughMonth = lines.filter((line) => (line.voucher_date ?? '') < next.toISOString().slice(0, 10))
+        const closing = asNumber(ledgerResult.data.opening_balance) + throughMonth.reduce((sum, line) => sum + asNumber(line.credit_amount) - asNumber(line.debit_amount), 0)
+        monthRows.push({ ledger_id: ledgerId, ledger_name: ledgerResult.data.name, parent_name: ledgerResult.data.parent_name, period, debit_total: debit, credit_total: credit, closing_balance: closing })
+      }
+      rows = monthRows
+    }
+  }
+  const first = rows[0]
+  return {
+    ledgerId,
+    ledgerName: first?.ledger_name ?? ledgerResult.data.name,
+    parentName: first?.parent_name ?? ledgerResult.data.parent_name ?? 'Unassigned',
+    months: rows.map((row) => ({ period: row.period, debit: asNumber(row.debit_total), credit: asNumber(row.credit_total), closingBalance: asNumber(row.closing_balance) })),
+    totalDebit: rows.reduce((sum, row) => sum + asNumber(row.debit_total), 0),
+    totalCredit: rows.reduce((sum, row) => sum + asNumber(row.credit_total), 0),
+  }
 }
