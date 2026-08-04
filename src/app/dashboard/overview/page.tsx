@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation'
 import { getDashboardData, listCompanies, listOrganizations } from '@/lib/data'
 import { Dashboard } from '@/components/dashboard'
+import { normalizePeriodQuery } from '@/lib/period'
 
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ org?: string; company?: string; from?: string; to?: string }> }) {
   const params = await searchParams
+  const period = normalizePeriodQuery(params.from, params.to)
   const organizations = await listOrganizations()
   const organizationId = params.org && organizations.some((org) => org.id === params.org) ? params.org : undefined
   const companies = organizationId ? await listCompanies(organizationId) : []
@@ -16,7 +18,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     redirect(`/dashboard?${search.toString()}`)
   }
 
-  const data = await getDashboardData(companyId, params.from, params.to)
+  const data = period.isValid ? await getDashboardData(companyId, period.from || undefined, period.to || undefined) : null
 
   return (
     <Dashboard 
@@ -25,8 +27,8 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       selectedOrganizationId={organizationId} 
       selectedCompanyId={companyId} 
       data={data} 
-      from={params.from ?? ''} 
-      to={params.to ?? ''} 
+      from={period.from}
+      to={period.to}
     />
   )
 }

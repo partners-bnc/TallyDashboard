@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ArrowLeft, Scales, SpinnerGap } from '@phosphor-icons/react'
 import type { LedgerMonthlyData, TrialBalanceData } from '@/lib/types'
@@ -17,11 +18,18 @@ const query = (values: Record<string, string | undefined>) => {
 }
 
 function PeriodForm({ action, orgId, companyId, ledgerId, from, to }: { action: string; orgId: string; companyId: string; ledgerId?: string; from: string; to: string }) {
-  return <form className={styles.periodForm} action={action}>
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const applyPeriod = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    startTransition(() => router.push(`${action}?${query({ org: orgId, company: companyId, ledger: ledgerId, from: String(formData.get('from') ?? ''), to: String(formData.get('to') ?? '') })}`))
+  }
+  return <form className={styles.periodForm} action={action} onSubmit={applyPeriod}>
     <input type="hidden" name="org" value={orgId} /><input type="hidden" name="company" value={companyId} />{ledgerId && <input type="hidden" name="ledger" value={ledgerId} />}
-    <label>From<input type="date" name="from" defaultValue={from} /></label>
-    <label>To<input type="date" name="to" defaultValue={to} /></label>
-    <button type="submit">Apply</button>
+    <label>From<input type="date" name="from" defaultValue={from} disabled={isPending} /></label>
+    <label>To<input type="date" name="to" defaultValue={to} disabled={isPending} /></label>
+    <button type="submit" disabled={isPending}>{isPending ? 'Applying…' : 'Apply'}</button>
   </form>
 }
 
@@ -31,15 +39,15 @@ export function TrialBalance({ orgId, companyId, companyName, orgName, data, fro
     <button className={styles.backButton} disabled={navigating} onClick={() => { setNavigating(true); window.location.assign(`/dashboard/overview?${query({ org: orgId, company: companyId, from, to })}`) }}>
       {navigating ? <SpinnerGap className={styles.spin} size={15} /> : <ArrowLeft size={15} />} Back to Overview
     </button>
-    <header className={styles.header}><div><span className={styles.eyebrow}>Trial Balance</span><h1>{companyName}</h1><p>{orgName} · Company-scoped closing balances</p></div><PeriodForm action="/dashboard/trial-balance" orgId={orgId} companyId={companyId} from={from} to={to} /></header>
+    <header className={styles.header}><div><span className={styles.eyebrow}>Trial Balance</span><h1>{companyName}</h1><p>{orgName} · Opening balance and movement for the selected period</p></div><PeriodForm action="/dashboard/trial-balance" orgId={orgId} companyId={companyId} from={from} to={to} /></header>
     {data?.sync.error && <div className={styles.warning}>Sync error: {data.sync.error}</div>}
     {!data ? <State text="Could not load Trial Balance. Please try again." error /> : data.groups.length === 0 ? <State text="No ledgers found for this company and period." /> : <section className={styles.tableWrap}>
-      <div className={styles.tableHead}><span>Ledger / Group</span><span>Debit</span><span>Credit</span></div>
+      <div className={styles.tableHead}><span>Ledger / Group</span><span>Opening</span><span>Debit</span><span>Credit</span><span>Closing</span></div>
       {data.groups.map((group) => <div key={group.name}>
-        <div className={styles.groupRow}><strong>{group.name}</strong><strong>{money.format(group.debitBalance)}</strong><strong>{money.format(group.creditBalance)}</strong></div>
-        {group.ledgers.map((ledger) => <button className={styles.ledgerRow} key={ledger.ledgerId} onClick={() => window.location.assign(`/dashboard/trial-balance/ledger?${query({ org: orgId, company: companyId, ledger: ledger.ledgerId, from, to })}`)}><span>{ledger.ledgerName}</span><span>{ledger.debitBalance ? money.format(ledger.debitBalance) : '—'}</span><span>{ledger.creditBalance ? money.format(ledger.creditBalance) : '—'}</span></button>)}
+        <div className={styles.groupRow}><strong>{group.name}</strong><strong>{formatBalance(group.openingBalance)}</strong><strong>{group.debitTotal ? money.format(group.debitTotal) : '—'}</strong><strong>{group.creditTotal ? money.format(group.creditTotal) : '—'}</strong><strong>{formatBalance(group.closingBalance)}</strong></div>
+        {group.ledgers.map((ledger) => <button className={styles.ledgerRow} key={ledger.ledgerId} onClick={() => window.location.assign(`/dashboard/trial-balance/ledger?${query({ org: orgId, company: companyId, ledger: ledger.ledgerId, from, to })}`)}><span>{ledger.ledgerName}</span><span>{formatBalance(ledger.openingBalance)}</span><span>{ledger.debitTotal ? money.format(ledger.debitTotal) : '—'}</span><span>{ledger.creditTotal ? money.format(ledger.creditTotal) : '—'}</span><span>{formatBalance(ledger.closingBalance)}</span></button>)}
       </div>)}
-      <div className={styles.totalRow}><strong>Grand Total</strong><strong>{money.format(data.totalDebit)}</strong><strong>{money.format(data.totalCredit)}</strong></div>
+      <div className={styles.totalRow}><strong>Grand Total</strong><strong>{formatBalance(data.totalOpening)}</strong><strong>{money.format(data.totalDebit)}</strong><strong>{money.format(data.totalCredit)}</strong><strong>{formatBalance(data.totalClosing)}</strong></div>
     </section>}
   </div></main><Footer /></div>
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useTransition, type FormEvent } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@astryxdesign/core/Button'
 import { ArrowUpRight, ArrowsClockwise, CaretDown, ChartLineUp, MagnifyingGlass, Receipt, TrendUp, TrendDown, Scales, X, Buildings, ArrowsLeftRight, ChartBar, Clock, Notebook } from '@phosphor-icons/react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -73,6 +74,8 @@ export function Dashboard({
   from: string
   to: string
 }) {
+  const router = useRouter()
+  const [isApplyingPeriod, startPeriodTransition] = useTransition()
   const [ledgerSearch, setLedgerSearch] = useState('')
   const [dateOpen, setDateOpen] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
@@ -84,6 +87,15 @@ export function Dashboard({
       `${ledger.name} ${ledger.parent_name ?? ''}`.toLowerCase().includes(ledgerSearch.toLowerCase())
     ) ?? []
   }, [data?.ledgers, ledgerSearch])
+
+  const applyPeriod = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const nextFrom = String(formData.get('from') ?? '')
+    const nextTo = String(formData.get('to') ?? '')
+    setDateOpen(false)
+    startPeriodTransition(() => router.push(withContext(selectedOrganizationId, selectedCompanyId, nextFrom, nextTo)))
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col justify-between font-inter">
@@ -195,12 +207,12 @@ export function Dashboard({
                         <CaretDown size={14} />
                       </button>
                       {dateOpen && (
-                        <form className={styles.datePopover} action="/dashboard/overview" onSubmit={() => setIsTransitioning(true)}>
+                        <form className={styles.datePopover} action="/dashboard/overview" onSubmit={applyPeriod}>
                           <input type="hidden" name="org" value={selectedOrganizationId ?? ''} />
                           <input type="hidden" name="company" value={selectedCompanyId} />
                           <label>From<input name="from" type="date" defaultValue={from} /></label>
                           <label>To<input name="to" type="date" defaultValue={to} /></label>
-                          <Button label="Apply period" type="submit" />
+                          <Button label={isApplyingPeriod ? 'Applying…' : 'Apply period'} type="submit" disabled={isApplyingPeriod} />
                         </form>
                       )}
                     </div>

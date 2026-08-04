@@ -3,14 +3,14 @@ import type { Company, DashboardData, Ledger, LedgerMonthlyData, Organization, T
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0)
 
-export function groupTrialBalanceRows(rows: Array<{ ledger_id: string; ledger_name: string; parent_name: string | null; closing_balance: number | string | null; debit_balance: number | string | null; credit_balance: number | string | null }>) {
+export function groupTrialBalanceRows(rows: Array<{ ledger_id: string; ledger_name: string; parent_name: string | null; opening_balance: number | string | null; debit_total: number | string | null; credit_total: number | string | null; closing_balance: number | string | null }>) {
   const groups = new Map<string, TrialBalanceLedgerRow[]>()
   for (const row of rows) {
-    const ledger: TrialBalanceLedgerRow = { ledgerId: row.ledger_id, ledgerName: row.ledger_name, parentName: row.parent_name ?? 'Unassigned', closingBalance: asNumber(row.closing_balance), debitBalance: asNumber(row.debit_balance), creditBalance: asNumber(row.credit_balance) }
-    if (ledger.debitBalance === 0 && ledger.creditBalance === 0) continue
+    const ledger: TrialBalanceLedgerRow = { ledgerId: row.ledger_id, ledgerName: row.ledger_name, parentName: row.parent_name ?? 'Unassigned', openingBalance: asNumber(row.opening_balance), debitTotal: asNumber(row.debit_total), creditTotal: asNumber(row.credit_total), closingBalance: asNumber(row.closing_balance) }
+    if (ledger.openingBalance === 0 && ledger.debitTotal === 0 && ledger.creditTotal === 0 && ledger.closingBalance === 0) continue
     groups.set(ledger.parentName, [...(groups.get(ledger.parentName) ?? []), ledger])
   }
-  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, ledgers]) => ({ name, ledgers: ledgers.sort((a, b) => a.ledgerName.localeCompare(b.ledgerName)), debitBalance: ledgers.reduce((sum, row) => sum + row.debitBalance, 0), creditBalance: ledgers.reduce((sum, row) => sum + row.creditBalance, 0) }))
+  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, ledgers]) => ({ name, ledgers: ledgers.sort((a, b) => a.ledgerName.localeCompare(b.ledgerName)), openingBalance: ledgers.reduce((sum, row) => sum + row.openingBalance, 0), debitTotal: ledgers.reduce((sum, row) => sum + row.debitTotal, 0), creditTotal: ledgers.reduce((sum, row) => sum + row.creditTotal, 0), closingBalance: ledgers.reduce((sum, row) => sum + row.closingBalance, 0) }))
 }
 
 export async function listOrganizations(): Promise<Organization[]> {
@@ -102,16 +102,28 @@ export async function getTrialBalanceData(companyId: string, from?: string, to?:
       linesQuery,
     ])
     if (ledgersResult.error || linesResult.error) throw new Error(`Could not load Trial Balance: ${balanceResult.error.message}`)
-    const movementByLedger = new Map<string, number>()
-    for (const line of linesResult.data ?? []) movementByLedger.set(line.ledger_id ?? '', (movementByLedger.get(line.ledger_id ?? '') ?? 0) + asNumber(line.credit_amount) - asNumber(line.debit_amount))
+    const openingMovementByLedger = new Map<string, number>()
+    const debitByLedger = new Map<string, number>()
+    const creditByLedger = new Map<string, number>()
+    for (const line of linesResult.data ?? []) {
+      const ledgerId = line.ledger_id ?? ''
+      if (from && (line.voucher_date ?? '') < from) {
+        openingMovementByLedger.set(ledgerId, (openingMovementByLedger.get(ledgerId) ?? 0) + asNumber(line.credit_amount) - asNumber(line.debit_amount))
+      } else if ((!from || (line.voucher_date ?? '') >= from) && (!to || (line.voucher_date ?? '') <= to)) {
+        debitByLedger.set(ledgerId, (debitByLedger.get(ledgerId) ?? 0) + asNumber(line.debit_amount))
+        creditByLedger.set(ledgerId, (creditByLedger.get(ledgerId) ?? 0) + asNumber(line.credit_amount))
+      }
+    }
     balanceRows = (ledgersResult.data ?? []).map((ledger) => {
-      const closing = asNumber(ledger.opening_balance) + (movementByLedger.get(ledger.id) ?? 0)
-      return { ledger_id: ledger.id, ledger_name: ledger.name, parent_name: ledger.parent_name, closing_balance: closing, debit_balance: Math.max(-closing, 0), credit_balance: Math.max(closing, 0) }
+      const opening = asNumber(ledger.opening_balance) + (openingMovementByLedger.get(ledger.id) ?? 0)
+      const debit = debitByLedger.get(ledger.id) ?? 0
+      const credit = creditByLedger.get(ledger.id) ?? 0
+      return { ledger_id: ledger.id, ledger_name: ledger.name, parent_name: ledger.parent_name, opening_balance: opening, debit_total: debit, credit_total: credit, closing_balance: opening + credit - debit }
     })
   }
   const groupRows = groupTrialBalanceRows(balanceRows)
   const syncError = syncResult.data?.last_error ?? companyResult.data?.last_sync_error ?? null
-  return { groups: groupRows, totalDebit: groupRows.reduce((sum, row) => sum + row.debitBalance, 0), totalCredit: groupRows.reduce((sum, row) => sum + row.creditBalance, 0), sync: { status: syncError ? 'error' : companyResult.data?.last_sync_status ?? null, error: syncError } }
+  return { groups: groupRows, totalOpening: groupRows.reduce((sum, row) => sum + row.openingBalance, 0), totalDebit: groupRows.reduce((sum, row) => sum + row.debitTotal, 0), totalCredit: groupRows.reduce((sum, row) => sum + row.creditTotal, 0), totalClosing: groupRows.reduce((sum, row) => sum + row.closingBalance, 0), sync: { status: syncError ? 'error' : companyResult.data?.last_sync_status ?? null, error: syncError } }
 }
 
 export async function getLedgerMonthlyData(companyId: string, ledgerId: string, from?: string, to?: string): Promise<LedgerMonthlyData | null> {
