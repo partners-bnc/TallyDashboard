@@ -212,7 +212,7 @@ export function Dashboard({
                           <input type="hidden" name="company" value={selectedCompanyId} />
                           <label>From<input name="from" type="date" defaultValue={from} /></label>
                           <label>To<input name="to" type="date" defaultValue={to} /></label>
-                          <Button label={isApplyingPeriod ? 'Applying…' : 'Apply period'} type="submit" disabled={isApplyingPeriod} />
+                          <Button label={isApplyingPeriod ? 'Applying…' : 'Apply period'} type="submit" isDisabled={isApplyingPeriod} />
                         </form>
                       )}
                     </div>

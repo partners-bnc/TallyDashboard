@@ -127,13 +127,26 @@ export async function getTrialBalanceData(companyId: string, from?: string, to?:
     ])
     if (ledgersResult.error || linesResult.error) throw new Error(`Could not load Trial Balance: ${balanceResult.error.message}`)
     const movementByLedger = new Map<string, number>()
+    const debitByLedger = new Map<string, number>()
+    const creditByLedger = new Map<string, number>()
     for (const line of linesResult.data ?? []) {
       const ledgerId = line.ledger_id ?? ''
-      movementByLedger.set(ledgerId, (movementByLedger.get(ledgerId) ?? 0) + asNumber(line.credit_amount) - asNumber(line.debit_amount))
+      const debit = asNumber(line.debit_amount)
+      const credit = asNumber(line.credit_amount)
+      movementByLedger.set(ledgerId, (movementByLedger.get(ledgerId) ?? 0) + credit - debit)
+      debitByLedger.set(ledgerId, (debitByLedger.get(ledgerId) ?? 0) + debit)
+      creditByLedger.set(ledgerId, (creditByLedger.get(ledgerId) ?? 0) + credit)
     }
     balanceRows = (ledgersResult.data ?? []).map((ledger) => {
       const closing = asNumber(ledger.opening_balance) + (movementByLedger.get(ledger.id) ?? 0)
-      return { ledger_id: ledger.id, ledger_name: ledger.name, parent_name: ledger.parent_name, closing_balance: closing }
+      return {
+        ledger_id: ledger.id,
+        ledger_name: ledger.name,
+        parent_name: ledger.parent_name,
+        closing_balance: closing,
+        debit_balance: debitByLedger.get(ledger.id) ?? 0,
+        credit_balance: creditByLedger.get(ledger.id) ?? 0,
+      }
     })
   }
   const groupRows = groupTrialBalanceRows(balanceRows)
