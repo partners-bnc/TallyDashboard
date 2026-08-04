@@ -3,14 +3,38 @@ import type { Company, DashboardData, Ledger, LedgerMonthlyData, Organization, T
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0)
 
-export function groupTrialBalanceRows(rows: Array<{ ledger_id: string; ledger_name: string; parent_name: string | null; opening_balance: number | string | null; debit_total: number | string | null; credit_total: number | string | null; closing_balance: number | string | null }>) {
+type TrialBalanceSourceRow = { ledger_id: string; ledger_name: string; parent_name: string | null; closing_balance: number | string | null }
+
+const PNL_LEDGER = /^(?:profit\s*(?:&|and)\s*loss|p\s*&\s*l)(?:\s+a\/?c)?$/i
+const PNL_GROUPS = new Set(['sales accounts', 'purchase accounts', 'direct expenses', 'indirect expenses', 'direct incomes', 'indirect incomes'])
+
+function rollUpProfitAndLoss(rows: TrialBalanceSourceRow[]) {
+  const pnlIndex = rows.findIndex((row) => PNL_LEDGER.test(row.ledger_name.trim()))
+  if (pnlIndex === -1) return rows
+
+  let pnlClosing = asNumber(rows[pnlIndex].closing_balance)
+  const visibleRows: TrialBalanceSourceRow[] = []
+  for (const [index, row] of rows.entries()) {
+    if (index === pnlIndex) continue
+    if (PNL_GROUPS.has((row.parent_name ?? '').trim().toLowerCase())) {
+      pnlClosing += asNumber(row.closing_balance)
+    } else {
+      visibleRows.push(row)
+    }
+  }
+  visibleRows.push({ ...rows[pnlIndex], closing_balance: pnlClosing })
+  return visibleRows
+}
+
+export function groupTrialBalanceRows(rows: TrialBalanceSourceRow[]) {
   const groups = new Map<string, TrialBalanceLedgerRow[]>()
-  for (const row of rows) {
-    const ledger: TrialBalanceLedgerRow = { ledgerId: row.ledger_id, ledgerName: row.ledger_name, parentName: row.parent_name ?? 'Unassigned', openingBalance: asNumber(row.opening_balance), debitTotal: asNumber(row.debit_total), creditTotal: asNumber(row.credit_total), closingBalance: asNumber(row.closing_balance) }
-    if (ledger.openingBalance === 0 && ledger.debitTotal === 0 && ledger.creditTotal === 0 && ledger.closingBalance === 0) continue
+  for (const row of rollUpProfitAndLoss(rows)) {
+    const closingBalance = asNumber(row.closing_balance)
+    const ledger: TrialBalanceLedgerRow = { ledgerId: row.ledger_id, ledgerName: row.ledger_name, parentName: row.parent_name ?? 'Unassigned', closingBalance, debitBalance: Math.max(-closingBalance, 0), creditBalance: Math.max(closingBalance, 0) }
+    if (ledger.debitBalance === 0 && ledger.creditBalance === 0) continue
     groups.set(ledger.parentName, [...(groups.get(ledger.parentName) ?? []), ledger])
   }
-  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, ledgers]) => ({ name, ledgers: ledgers.sort((a, b) => a.ledgerName.localeCompare(b.ledgerName)), openingBalance: ledgers.reduce((sum, row) => sum + row.openingBalance, 0), debitTotal: ledgers.reduce((sum, row) => sum + row.debitTotal, 0), creditTotal: ledgers.reduce((sum, row) => sum + row.creditTotal, 0), closingBalance: ledgers.reduce((sum, row) => sum + row.closingBalance, 0) }))
+  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, ledgers]) => ({ name, ledgers: ledgers.sort((a, b) => a.ledgerName.localeCompare(b.ledgerName)), debitBalance: ledgers.reduce((sum, row) => sum + row.debitBalance, 0), creditBalance: ledgers.reduce((sum, row) => sum + row.creditBalance, 0) }))
 }
 
 export async function listOrganizations(): Promise<Organization[]> {
@@ -85,7 +109,7 @@ export async function searchLedgerLines(companyId: string, ledgerId: string, sea
 export async function getTrialBalanceData(companyId: string, from?: string, to?: string): Promise<TrialBalanceData> {
   const supabase = await createSupabaseServerClient()
   const [balanceResult, syncResult, companyResult] = await Promise.all([
-    supabase.rpc('tb_trial_balance', { target_company: companyId, from_date: from ?? null, to_date: to ?? null }),
+    supabase.rpc('tb_trial_balance', { target_company: companyId, from_date: null, to_date: to ?? from ?? null }),
     supabase.from('tb_company_sync_state').select('last_error').eq('company_id', companyId).maybeSingle(),
     supabase.from('tb_companies').select('last_sync_status,last_sync_error').eq('id', companyId).maybeSingle(),
   ])
@@ -102,28 +126,19 @@ export async function getTrialBalanceData(companyId: string, from?: string, to?:
       linesQuery,
     ])
     if (ledgersResult.error || linesResult.error) throw new Error(`Could not load Trial Balance: ${balanceResult.error.message}`)
-    const openingMovementByLedger = new Map<string, number>()
-    const debitByLedger = new Map<string, number>()
-    const creditByLedger = new Map<string, number>()
+    const movementByLedger = new Map<string, number>()
     for (const line of linesResult.data ?? []) {
       const ledgerId = line.ledger_id ?? ''
-      if (from && (line.voucher_date ?? '') < from) {
-        openingMovementByLedger.set(ledgerId, (openingMovementByLedger.get(ledgerId) ?? 0) + asNumber(line.credit_amount) - asNumber(line.debit_amount))
-      } else if ((!from || (line.voucher_date ?? '') >= from) && (!to || (line.voucher_date ?? '') <= to)) {
-        debitByLedger.set(ledgerId, (debitByLedger.get(ledgerId) ?? 0) + asNumber(line.debit_amount))
-        creditByLedger.set(ledgerId, (creditByLedger.get(ledgerId) ?? 0) + asNumber(line.credit_amount))
-      }
+      movementByLedger.set(ledgerId, (movementByLedger.get(ledgerId) ?? 0) + asNumber(line.credit_amount) - asNumber(line.debit_amount))
     }
     balanceRows = (ledgersResult.data ?? []).map((ledger) => {
-      const opening = asNumber(ledger.opening_balance) + (openingMovementByLedger.get(ledger.id) ?? 0)
-      const debit = debitByLedger.get(ledger.id) ?? 0
-      const credit = creditByLedger.get(ledger.id) ?? 0
-      return { ledger_id: ledger.id, ledger_name: ledger.name, parent_name: ledger.parent_name, opening_balance: opening, debit_total: debit, credit_total: credit, closing_balance: opening + credit - debit }
+      const closing = asNumber(ledger.opening_balance) + (movementByLedger.get(ledger.id) ?? 0)
+      return { ledger_id: ledger.id, ledger_name: ledger.name, parent_name: ledger.parent_name, closing_balance: closing }
     })
   }
   const groupRows = groupTrialBalanceRows(balanceRows)
   const syncError = syncResult.data?.last_error ?? companyResult.data?.last_sync_error ?? null
-  return { groups: groupRows, totalOpening: groupRows.reduce((sum, row) => sum + row.openingBalance, 0), totalDebit: groupRows.reduce((sum, row) => sum + row.debitTotal, 0), totalCredit: groupRows.reduce((sum, row) => sum + row.creditTotal, 0), totalClosing: groupRows.reduce((sum, row) => sum + row.closingBalance, 0), sync: { status: syncError ? 'error' : companyResult.data?.last_sync_status ?? null, error: syncError } }
+  return { groups: groupRows, totalDebit: groupRows.reduce((sum, row) => sum + row.debitBalance, 0), totalCredit: groupRows.reduce((sum, row) => sum + row.creditBalance, 0), sync: { status: syncError ? 'error' : companyResult.data?.last_sync_status ?? null, error: syncError } }
 }
 
 export async function getLedgerMonthlyData(companyId: string, ledgerId: string, from?: string, to?: string): Promise<LedgerMonthlyData | null> {

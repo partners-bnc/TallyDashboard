@@ -2,15 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { groupTrialBalanceRows } from './data'
 
 describe('groupTrialBalanceRows', () => {
-  it('groups ledgers, carries opening balances, and reconciles period movement', () => {
+  it('uses closing balance sides, omits zero rows, and rolls income into Profit & Loss', () => {
     const groups = groupTrialBalanceRows([
-      { ledger_id: '2', ledger_name: 'Bank', parent_name: 'Current Assets', opening_balance: -100, debit_total: 75, credit_total: 25, closing_balance: -150 },
-      { ledger_id: '1', ledger_name: 'Cash', parent_name: null, opening_balance: 0, debit_total: 0, credit_total: 0, closing_balance: 0 },
-      { ledger_id: '3', ledger_name: 'Sales', parent_name: 'Income', opening_balance: 200, debit_total: 0, credit_total: '100', closing_balance: 300 },
+      { ledger_id: '2', ledger_name: 'Bank', parent_name: 'Current Assets', closing_balance: -150 },
+      { ledger_id: '1', ledger_name: 'Cash', parent_name: null, closing_balance: 0 },
+      { ledger_id: '3', ledger_name: 'Consultancy services', parent_name: 'Sales Accounts', closing_balance: 300 },
+      { ledger_id: '4', ledger_name: 'Profit & Loss A/c', parent_name: 'Primary', closing_balance: 0 },
     ])
-    expect(groups.map((group) => group.name)).toEqual(['Current Assets', 'Income'])
-    expect(groups[0]).toMatchObject({ openingBalance: -100, debitTotal: 75, creditTotal: 25, closingBalance: -150 })
-    expect(groups[1]).toMatchObject({ openingBalance: 200, debitTotal: 0, creditTotal: 100, closingBalance: 300 })
-    expect(groups.every((group) => group.ledgers.every((ledger) => ledger.openingBalance !== 0 || ledger.debitTotal !== 0 || ledger.creditTotal !== 0 || ledger.closingBalance !== 0))).toBe(true)
+    expect(groups.map((group) => group.name)).toEqual(['Current Assets', 'Primary'])
+    expect(groups[0]).toMatchObject({ debitBalance: 150, creditBalance: 0 })
+    expect(groups[1]).toMatchObject({ debitBalance: 0, creditBalance: 300 })
+    expect(groups[1].ledgers[0]).toMatchObject({ ledgerName: 'Profit & Loss A/c', creditBalance: 300 })
   })
 })

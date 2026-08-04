@@ -33,7 +33,7 @@ export interface Database {
       }
       tb_trial_balance: {
         Args: { target_company: string; from_date?: string | null; to_date?: string | null }
-        Returns: { ledger_id: string; ledger_name: string; parent_name: string | null; opening_balance: number; debit_total: number; credit_total: number; closing_balance: number }[]
+        Returns: { ledger_id: string; ledger_name: string; parent_name: string | null; closing_balance: number; debit_balance: number; credit_balance: number }[]
       }
       tb_ledger_monthly_summary: {
         Args: { target_company: string; target_ledger: string; from_date?: string | null; to_date?: string | null }
@@ -60,27 +60,22 @@ export type TrialBalanceLedgerRow = {
   ledgerId: string
   ledgerName: string
   parentName: string
-  openingBalance: number
-  debitTotal: number
-  creditTotal: number
   closingBalance: number
+  debitBalance: number
+  creditBalance: number
 }
 
 export type TrialBalanceGroupRow = {
   name: string
-  openingBalance: number
-  debitTotal: number
-  creditTotal: number
-  closingBalance: number
+  debitBalance: number
+  creditBalance: number
   ledgers: TrialBalanceLedgerRow[]
 }
 
 export type TrialBalanceData = {
   groups: TrialBalanceGroupRow[]
-  totalOpening: number
   totalDebit: number
   totalCredit: number
-  totalClosing: number
   sync: { status: string | null; error: string | null }
 }
 

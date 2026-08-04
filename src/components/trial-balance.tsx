@@ -33,21 +33,36 @@ function PeriodForm({ action, orgId, companyId, ledgerId, from, to }: { action: 
   </form>
 }
 
-export function TrialBalance({ orgId, companyId, companyName, orgName, data, from, to }: { orgId: string; companyId: string; companyName: string; orgName: string; data: TrialBalanceData | null; from: string; to: string }) {
+function AsOfForm({ orgId, companyId, asOf }: { orgId: string; companyId: string; asOf: string }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const applyAsOf = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    startTransition(() => router.push(`/dashboard/trial-balance?${query({ org: orgId, company: companyId, to: String(formData.get('to') ?? '') })}`))
+  }
+  return <form className={styles.periodForm} action="/dashboard/trial-balance" onSubmit={applyAsOf}>
+    <input type="hidden" name="org" value={orgId} /><input type="hidden" name="company" value={companyId} />
+    <label>As of<input type="date" name="to" defaultValue={asOf} disabled={isPending} /></label>
+    <button type="submit" disabled={isPending}>{isPending ? 'Applying…' : 'Apply'}</button>
+  </form>
+}
+
+export function TrialBalance({ orgId, companyId, companyName, orgName, data, asOf }: { orgId: string; companyId: string; companyName: string; orgName: string; data: TrialBalanceData | null; asOf: string }) {
   const [navigating, setNavigating] = useState(false)
   return <div className="min-h-screen bg-background flex flex-col justify-between font-inter"><Header /><main className="flex-grow"><div className={styles.shell}>
-    <button className={styles.backButton} disabled={navigating} onClick={() => { setNavigating(true); window.location.assign(`/dashboard/overview?${query({ org: orgId, company: companyId, from, to })}`) }}>
+    <button className={styles.backButton} disabled={navigating} onClick={() => { setNavigating(true); window.location.assign(`/dashboard/overview?${query({ org: orgId, company: companyId, to: asOf })}`) }}>
       {navigating ? <SpinnerGap className={styles.spin} size={15} /> : <ArrowLeft size={15} />} Back to Overview
     </button>
-    <header className={styles.header}><div><span className={styles.eyebrow}>Trial Balance</span><h1>{companyName}</h1><p>{orgName} · Opening balance and movement for the selected period</p></div><PeriodForm action="/dashboard/trial-balance" orgId={orgId} companyId={companyId} from={from} to={to} /></header>
+    <header className={styles.header}><div><span className={styles.eyebrow}>Trial Balance</span><h1>{companyName}</h1><p>{orgName} · Closing balances as of {asOf || 'today'}</p></div><AsOfForm orgId={orgId} companyId={companyId} asOf={asOf} /></header>
     {data?.sync.error && <div className={styles.warning}>Sync error: {data.sync.error}</div>}
     {!data ? <State text="Could not load Trial Balance. Please try again." error /> : data.groups.length === 0 ? <State text="No ledgers found for this company and period." /> : <section className={styles.tableWrap}>
-      <div className={styles.tableHead}><span>Ledger / Group</span><span>Opening</span><span>Debit</span><span>Credit</span><span>Closing</span></div>
+      <div className={styles.tableHead}><span>Ledger / Group</span><span>Debit</span><span>Credit</span></div>
       {data.groups.map((group) => <div key={group.name}>
-        <div className={styles.groupRow}><strong>{group.name}</strong><strong>{formatBalance(group.openingBalance)}</strong><strong>{group.debitTotal ? money.format(group.debitTotal) : '—'}</strong><strong>{group.creditTotal ? money.format(group.creditTotal) : '—'}</strong><strong>{formatBalance(group.closingBalance)}</strong></div>
-        {group.ledgers.map((ledger) => <button className={styles.ledgerRow} key={ledger.ledgerId} onClick={() => window.location.assign(`/dashboard/trial-balance/ledger?${query({ org: orgId, company: companyId, ledger: ledger.ledgerId, from, to })}`)}><span>{ledger.ledgerName}</span><span>{formatBalance(ledger.openingBalance)}</span><span>{ledger.debitTotal ? money.format(ledger.debitTotal) : '—'}</span><span>{ledger.creditTotal ? money.format(ledger.creditTotal) : '—'}</span><span>{formatBalance(ledger.closingBalance)}</span></button>)}
+        <div className={styles.groupRow}><strong>{group.name}</strong><strong>{group.debitBalance ? money.format(group.debitBalance) : '—'}</strong><strong>{group.creditBalance ? money.format(group.creditBalance) : '—'}</strong></div>
+        {group.ledgers.map((ledger) => <button className={styles.ledgerRow} key={ledger.ledgerId} onClick={() => window.location.assign(`/dashboard/trial-balance/ledger?${query({ org: orgId, company: companyId, ledger: ledger.ledgerId, to: asOf })}`)}><span>{ledger.ledgerName}</span><span>{ledger.debitBalance ? money.format(ledger.debitBalance) : '—'}</span><span>{ledger.creditBalance ? money.format(ledger.creditBalance) : '—'}</span></button>)}
       </div>)}
-      <div className={styles.totalRow}><strong>Grand Total</strong><strong>{formatBalance(data.totalOpening)}</strong><strong>{money.format(data.totalDebit)}</strong><strong>{money.format(data.totalCredit)}</strong><strong>{formatBalance(data.totalClosing)}</strong></div>
+      <div className={styles.totalRow}><strong>Grand Total</strong><strong>{money.format(data.totalDebit)}</strong><strong>{money.format(data.totalCredit)}</strong></div>
     </section>}
   </div></main><Footer /></div>
 }

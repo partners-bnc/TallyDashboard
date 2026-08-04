@@ -13,7 +13,7 @@
 .warning { margin-bottom:20px; border-color:var(--negative); color:var(--negative); text-align:left; }
 .error { border-color:var(--negative); color:var(--negative); }
 .tableWrap { overflow:auto; border:1px solid var(--rule); border-radius:var(--radius-md); background:var(--paper); box-shadow:var(--shadow-soft); }
-.tableHead,.groupRow,.ledgerRow,.totalRow { display:grid; grid-template-columns:minmax(220px,1fr) repeat(4, minmax(140px, 180px)); min-width:900px; align-items:center; }
+.tableHead,.groupRow,.ledgerRow,.totalRow { display:grid; grid-template-columns:minmax(220px,1fr) 180px 180px; min-width:620px; align-items:center; }
 .tableHead { padding:13px 20px; background:var(--accent-soft); color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
 .tableHead span:not(:first-child),.groupRow span:not(:first-child),.groupRow strong:not(:first-child),.ledgerRow span:not(:first-child),.totalRow strong:not(:first-child) { text-align:right; }
 .groupRow { padding:15px 20px 10px; border-top:1px solid var(--rule); color:var(--foreground); background:color-mix(in oklch, var(--accent-soft) 35%, white); }
