@@ -10,9 +10,11 @@ export interface Database {
       tb_org_members: Table<{ user_id: string; org_id: string; role: string; created_at: string }>
       tb_companies: Table<{ id: string; org_id: string; name: string; tally_company_guid: string; last_successful_sync_at: string | null; last_sync_status: string | null; last_sync_error: string | null; is_active: boolean; updated_at: string }>
       tb_ledgers: Table<{ id: string; org_id: string; company_id: string; name: string; parent_name: string | null; opening_balance: number | null; closing_balance: number | null; is_deleted: boolean }>
-      tb_vouchers: Table<{ id: string; company_id: string; voucher_date: string; voucher_type: string; voucher_number: string | null; party_ledger_name: string | null; narration: string | null; is_cancelled: boolean; is_deleted: boolean }>
+      tb_vouchers: Table<{ id: string; company_id: string; voucher_date: string; voucher_type: string; voucher_number: string | null; party_ledger_name: string | null; narration: string | null; is_cancelled: boolean; is_optional: boolean; is_deleted: boolean }>
       tb_voucher_ledger_entries: Table<{ id: string; voucher_id: string; company_id: string; ledger_id: string | null; ledger_name: string; amount: number; is_deemed_positive: boolean | null }>
-      tb_company_sync_state: Table<{ company_id: string; last_catalog_seen_at: string | null; last_ledger_sync_at: string | null; last_voucher_sync_at: string | null; last_error: string | null; updated_at: string }>
+      tb_company_sync_state: Table<{ company_id: string; last_catalog_seen_at: string | null; last_ledger_sync_at: string | null; last_voucher_sync_at: string | null; last_error: string | null; history_baseline_date: string | null; history_earliest_voucher_date: string | null; history_latest_voucher_date: string | null; history_reconciliation_status: string | null; history_reconciled_at: string | null; verification_as_of_date: string | null; verification_status: string | null; verification_completed_at: string | null; updated_at: string }>
+      tb_tally_verification_snapshots: Table<{ id: string; org_id: string; company_id: string; ledger_id: string; as_of_date: string; closing_balance: number; synced_at: string }>
+      tb_tally_trial_balance_snapshots: Table<{ id: string; org_id: string; company_id: string; as_of_date: string; debit_total: number; credit_total: number; rows: Json; synced_at: string }>
     }
     Views: {
       tb_ledger_voucher_lines: View<{ company_id: string | null; ledger_id: string | null; ledger_name: string | null; voucher_ledger_entry_id: string | null; line_number: number | null; voucher_id: string | null; voucher_date: string | null; voucher_type: string | null; voucher_number: string | null; particulars: string | null; debit_amount: number | null; credit_amount: number | null; running_balance: number | null }>
@@ -39,6 +41,11 @@ export interface Database {
         Args: { target_company: string; target_ledger: string; from_date?: string | null; to_date?: string | null }
         Returns: { ledger_id: string; ledger_name: string; parent_name: string | null; period: string; debit_total: number; credit_total: number; closing_balance: number }[]
       }
+      tb_trial_balance_verification: { Args: { target_company: string; target_date: string }; Returns: { ledger_id: string | null; ledger_name: string | null; calculated_balance: number | null; tally_balance: number | null; difference: number | null }[] }
+      tb_history_coverage: {
+        Args: { target_company: string }
+        Returns: { baseline_date: string | null; earliest_voucher_date: string | null; latest_voucher_date: string | null; reconciliation_status: string | null; reconciled_at: string | null }[]
+      }
     }
   }
 }
@@ -54,6 +61,17 @@ export type DashboardData = {
   recentVouchers: { id: string; date: string; type: string; number: string | null; party: string | null; amount: number }[]
   ledgers: Ledger[]
   sync: { status: string | null; lastSyncedAt: string | null; error: string | null }
+  history: HistoryCoverage
+}
+
+export type HistoryCoverage = {
+  baselineDate: string | null
+  earliestVoucherDate: string | null
+  latestVoucherDate: string | null
+  reconciliationStatus: string | null
+  reconciledAt: string | null
+  isAvailable: boolean
+  message: string | null
 }
 
 export type TrialBalanceLedgerRow = {
@@ -77,8 +95,19 @@ export type TrialBalanceData = {
   totalDebit: number
   totalCredit: number
   sync: { status: string | null; error: string | null }
+  history: HistoryCoverage
+  verification: TrialBalanceVerification | null
+  authoritativeTotals: { asOfDate: string; debit: number; credit: number } | null
 }
 
+export type TrialBalanceVerification = {
+  asOfDate: string
+  tallyTotal: number
+  calculatedTotal: number
+  differenceTotal: number
+  unmatchedCount: number
+  largestDifferences: { ledgerName: string; calculatedBalance: number; tallyBalance: number; difference: number }[]
+}
 export type LedgerMonthlyMovement = {
   period: string
   debit: number
@@ -94,3 +123,8 @@ export type LedgerMonthlyData = {
   totalDebit: number
   totalCredit: number
 }
+
+
+
+
+

@@ -56,7 +56,13 @@ export function TrialBalance({ orgId, companyId, companyName, orgName, data, asO
     </button>
     <header className={styles.header}><div><span className={styles.eyebrow}>Trial Balance</span><h1>{companyName}</h1><p>{orgName} · Closing balances as of {asOf || 'today'}</p></div><AsOfForm orgId={orgId} companyId={companyId} asOf={asOf} /></header>
     {data?.sync.error && <div className={styles.warning}>Sync error: {data.sync.error}</div>}
-    {!data ? <State text="Could not load Trial Balance. Please try again." error /> : data.groups.length === 0 ? <State text="No ledgers found for this company and period." /> : <section className={styles.tableWrap}>
+    {data?.history.message && <div className={styles.warning}>{data.history.message}</div>}
+    {data?.authoritativeTotals && <div className={styles.warning}>Tally-verified grand total for {data.authoritativeTotals.asOfDate}: {money.format(data.authoritativeTotals.debit)} Dr / {money.format(data.authoritativeTotals.credit)} Cr. Ledger rows and drilldowns remain calculated from imported vouchers.</div>}`r`n    {data?.verification && <section className={styles.warning} aria-label="Tally verification">
+      <strong>Tally verification · {data.verification.asOfDate}</strong><br />
+      {data.verification.unmatchedCount === 0 ? 'Calculated balances match the uploaded Tally balances.' : `${data.verification.unmatchedCount} ledger differences · ${money.format(data.verification.differenceTotal)} absolute difference`}
+      {data.verification.largestDifferences.length > 0 && <ul>{data.verification.largestDifferences.map((row) => <li key={row.ledgerName}>{row.ledgerName}: dashboard {formatBalance(row.calculatedBalance)}, Tally {formatBalance(row.tallyBalance)}, difference {formatBalance(row.difference)}</li>)}</ul>}
+    </section>}
+    {!data ? <State text="Could not load Trial Balance. Please try again." error /> : !data.history.isAvailable ? <State text={data.history.message ?? 'Verified history is not available for this date.'} error /> : data.groups.length === 0 ? <State text="No ledgers found for this company and period." /> : <section className={styles.tableWrap}>
       <div className={styles.tableHead}><span>Ledger / Group</span><span>Debit</span><span>Credit</span></div>
       {data.groups.map((group) => <div key={group.name}>
         <div className={styles.groupRow}><strong>{group.name}</strong><strong>{group.debitBalance ? money.format(group.debitBalance) : '—'}</strong><strong>{group.creditBalance ? money.format(group.creditBalance) : '—'}</strong></div>
@@ -79,3 +85,7 @@ export function LedgerMonthly({ orgId, companyId, data, from, to }: { orgId: str
 }
 
 function State({ text, error = false }: { text: string; error?: boolean }) { return <div className={`${styles.state} ${error ? styles.error : ''}`}>{text}</div> }
+
+
+
+

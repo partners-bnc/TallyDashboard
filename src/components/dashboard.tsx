@@ -240,8 +240,9 @@ export function Dashboard({
                 </div>
               )}
 
+              {data?.history.message && (<div className={styles.warning} role="status"><Clock size={18} />{data.history.message}</div>)}
               <section className={styles.metrics}>
-                {data ? (
+                {data?.history.isAvailable ? (
                   <>
                     <Metric label="Voucher activity" value={compact.format(data.kpis.totalVouchers)} icon={Receipt} />
                     <Metric label="Debit movement" value={money.format(data.kpis.debit)} tone={styles.debit} icon={TrendUp} />
