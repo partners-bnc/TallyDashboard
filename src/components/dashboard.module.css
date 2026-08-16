@@ -1375,7 +1375,7 @@
   color: var(--muted);
   background: transparent;
   text-align: left;
-  cursor: default;
+  cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1386,6 +1386,11 @@
 .lineRow:hover {
   background: var(--accent-soft);
   transform: translateX(4px);
+}
+
+.lineRow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .lineRow>span {

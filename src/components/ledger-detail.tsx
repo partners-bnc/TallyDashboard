@@ -1,14 +1,50 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft, BookOpen, Lock, Activity, CaretLeft, CaretRight, MagnifyingGlass, ListDashes, SpinnerGap } from '@phosphor-icons/react'
+import { ArrowLeft, BookOpen, Lock, Activity, CaretLeft, CaretRight, MagnifyingGlass, ListDashes, SpinnerGap, X } from '@phosphor-icons/react'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
 import styles from './dashboard.module.css'
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
+const voucherMoney = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 })
+
+type LedgerLine = {
+  voucher_id: string | null
+  voucher_date: string | null
+  voucher_type: string | null
+  voucher_number: string | null
+  particulars: string | null
+  debit_amount: number | null
+  credit_amount: number | null
+  running_balance: number | null
+}
+
+type VoucherDetail = {
+  voucher: {
+    voucher_date: string | null
+    effective_date: string | null
+    voucher_type: string | null
+    voucher_number: string | null
+    party_ledger_name: string | null
+    reference: string | null
+    narration: string | null
+  }
+  entries: {
+    id: string
+    line_number: number
+    ledger_name: string
+    display_amount: number
+  }[]
+  totalAmount: number
+}
+
+function displayDate(value: string | null | undefined): string {
+  if (!value) return '—'
+  const date = new Date(`${value}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
 
 interface LedgerDetailProps {
   orgId: string | null
@@ -27,7 +63,7 @@ function Metric({
   value: string
   note?: string
   tone?: string
-  icon?: React.ComponentType<any>
+  icon?: React.ComponentType<{ className?: string; size?: number; weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone' }>
 }) {
   return (
     <div className={styles.metric}>
@@ -45,15 +81,7 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
   const [selectedIndices, setSelectedIndices] = useState<Record<number, boolean>>({})
-  const [lines, setLines] = useState<{
-    voucher_date: string | null
-    voucher_type: string | null
-    voucher_number: string | null
-    particulars: string | null
-    debit_amount: number | null
-    credit_amount: number | null
-    running_balance: number | null
-  }[]>([])
+  const [lines, setLines] = useState<LedgerLine[]>([])
   const [ledgerInfo, setLedgerInfo] = useState<{
     name: string
     parent_name: string | null
@@ -64,35 +92,62 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedVoucherId, setSelectedVoucherId] = useState<string | null>(null)
+  const [voucherDetail, setVoucherDetail] = useState<VoucherDetail | null>(null)
+  const [voucherError, setVoucherError] = useState('')
+
+  const loadLedger = useCallback(async (signal: AbortSignal) => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/ledger?company=${companyId}&ledger=${ledgerId}&page=${page}&search=${encodeURIComponent(query)}`, { signal })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error ?? 'Could not load ledger lines')
+      setLines(payload.lines ?? [])
+      setLedgerInfo(payload.ledger ?? null)
+      setHasMore(payload.hasMore ?? false)
+    } catch (reason: unknown) {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return
+      setError(reason instanceof Error ? reason.message : 'Could not load ledger lines')
+    } finally {
+      setLoading(false)
+    }
+  }, [companyId, ledgerId, page, query])
 
   useEffect(() => {
     const controller = new AbortController()
-    setLoading(true)
-    setError('')
+    // Fetching a new page is an external synchronization; the loader owns its request state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadLedger(controller.signal)
+    return () => controller.abort()
+  }, [loadLedger])
 
-    fetch(`/api/ledger?company=${companyId}&ledger=${ledgerId}&page=${page}&search=${encodeURIComponent(query)}`, {
-      signal: controller.signal
-    })
+  useEffect(() => {
+    if (!selectedVoucherId) return
+
+    const controller = new AbortController()
+    fetch(`/api/voucher?company=${companyId}&voucher=${selectedVoucherId}`, { signal: controller.signal })
       .then(async (response) => {
         const payload = await response.json()
-        if (!response.ok) throw new Error(payload.error ?? 'Could not load ledger lines')
-        setLines(payload.lines ?? [])
-        setLedgerInfo(payload.ledger ?? null)
-        setHasMore(payload.hasMore ?? false)
+        if (!response.ok) throw new Error(payload.error ?? 'Could not load voucher details')
+        setVoucherDetail(payload)
       })
       .catch((reason: unknown) => {
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        setError(reason instanceof Error ? reason.message : 'Could not load ledger lines')
+        setVoucherError(reason instanceof Error ? reason.message : 'Could not load voucher details')
       })
-      .finally(() => setLoading(false))
 
     return () => controller.abort()
-  }, [companyId, ledgerId, page, query])
+  }, [companyId, selectedVoucherId])
 
-  // Clear selections on page/search change
   useEffect(() => {
-    setSelectedIndices({})
-  }, [page, query])
+    if (!selectedVoucherId) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedVoucherId(null)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [selectedVoucherId])
 
   const opening = Number(ledgerInfo?.opening_balance ?? 0)
   const closing = Number(ledgerInfo?.closing_balance ?? 0)
@@ -103,6 +158,12 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
   const selectedCount = selectedLines.length
   const totalSelectedDebit = selectedLines.reduce((sum, line) => sum + (line.debit_amount ?? 0), 0)
   const totalSelectedCredit = selectedLines.reduce((sum, line) => sum + (line.credit_amount ?? 0), 0)
+
+  const openVoucher = (voucherId: string) => {
+    setVoucherDetail(null)
+    setVoucherError('')
+    setSelectedVoucherId(voucherId)
+  }
 
   // Back button path
   const backUrl = orgId && companyId
@@ -214,7 +275,7 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
                 <input
                   type="text"
                   value={query}
-                  onChange={(e) => { setQuery(e.target.value); setPage(0); }}
+                  onChange={(e) => { setQuery(e.target.value); setPage(0); setSelectedIndices({}) }}
                   placeholder="Search transactions..."
                   aria-label="Search transactions"
                 />
@@ -261,7 +322,20 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
                 </div>
                 <div className="flex flex-col">
                   {lines.map((line, idx) => (
-                    <div key={idx} className={styles.lineRow}>
+                    <div
+                      key={`${line.voucher_id ?? 'line'}-${line.voucher_number ?? idx}-${idx}`}
+                      className={styles.lineRow}
+                      role={line.voucher_id ? 'button' : undefined}
+                      tabIndex={line.voucher_id ? 0 : undefined}
+                      onClick={() => line.voucher_id && openVoucher(line.voucher_id)}
+                      onKeyDown={(event) => {
+                        if (line.voucher_id && (event.key === 'Enter' || event.key === ' ')) {
+                          event.preventDefault()
+                          openVoucher(line.voucher_id)
+                        }
+                      }}
+                      aria-label={line.voucher_id ? `Open ${line.voucher_type ?? 'voucher'} ${line.voucher_number ?? ''}` : undefined}
+                    >
                       <span className="justify-center">
                         <input
                           type="checkbox"
@@ -272,6 +346,7 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
                               [idx]: e.target.checked
                             }))
                           }}
+                          onClick={(event) => event.stopPropagation()}
                           className={styles.checkbox}
                         />
                       </span>
@@ -311,7 +386,7 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
             {/* Pagination block */}
             <div className="flex items-center justify-between border-t border-slate-100 mt-6 pt-6 text-sm font-medium text-slate-500 font-inter">
               <button
-                onClick={() => setPage(Math.max(0, page - 1))}
+                onClick={() => { setPage(Math.max(0, page - 1)); setSelectedIndices({}) }}
                 disabled={page === 0 || loading}
                 className="inline-flex items-center gap-1.5 px-4 h-9 border border-slate-200 rounded-full hover:border-primary hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-500 bg-white"
               >
@@ -324,7 +399,7 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
               </span>
 
               <button
-                onClick={() => setPage(page + 1)}
+                onClick={() => { setPage(page + 1); setSelectedIndices({}) }}
                 disabled={!hasMore || loading}
                 className="inline-flex items-center gap-1.5 px-4 h-9 border border-slate-200 rounded-full hover:border-primary hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:text-slate-500 bg-white"
               >
@@ -337,6 +412,69 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
 
         </div>
       </main>
+
+      {selectedVoucherId && (
+        <div className={styles.drawerBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedVoucherId(null) }}>
+          <aside className={styles.drawer} role="dialog" aria-modal="true" aria-labelledby="voucher-detail-title">
+            <div className={styles.drawerHeader}>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Accounting Voucher</span>
+                <h2 id="voucher-detail-title">
+                  {voucherDetail?.voucher.voucher_type ?? 'Voucher'}
+                  {voucherDetail?.voucher.voucher_number ? ` No. ${voucherDetail.voucher.voucher_number}` : ''}
+                </h2>
+                <span>{voucherDetail?.voucher.voucher_date ? displayDate(voucherDetail.voucher.voucher_date) : 'Loading voucher…'}</span>
+              </div>
+              <button type="button" aria-label="Close voucher details" onClick={() => setSelectedVoucherId(null)} className="p-2 rounded-full hover:bg-slate-100 text-slate-500">
+                <X size={20} />
+              </button>
+            </div>
+
+            {!voucherDetail && !voucherError ? (
+              <div className={styles.drawerNotice}><SpinnerGap size={20} className="animate-spin mx-auto mb-2" />Loading voucher details…</div>
+            ) : voucherError ? (
+              <div className={styles.drawerNotice}>{voucherError}</div>
+            ) : voucherDetail ? (
+              <>
+                <div className={styles.drawerStats}>
+                  <div className={styles.metric}>
+                    <span>{voucherDetail.voucher.voucher_type?.toLowerCase() === 'purchase' ? 'Supplier Invoice No.' : 'Reference'}</span>
+                    <strong>{voucherDetail.voucher.reference || '—'}</strong>
+                  </div>
+                  <div className={styles.metric}>
+                    <span>Party A/c Name</span>
+                    <strong>{voucherDetail.voucher.party_ledger_name || '—'}</strong>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span>Particulars</span>
+                    <span>Amount</span>
+                  </div>
+                  <div className={styles.drawerLines}>
+                    {voucherDetail.entries.length ? voucherDetail.entries.map((entry) => (
+                      <div key={entry.id} className={styles.drawerLine}>
+                        <div><strong>{entry.ledger_name}</strong></div>
+                        <div><strong>{voucherMoney.format(entry.display_amount)}</strong></div>
+                      </div>
+                    )) : <div className={styles.drawerNotice}>No ledger entries found.</div>}
+                  </div>
+                </div>
+                <div className={styles.drawerFooter}>
+                  <span>Total</span>
+                  <strong>{voucherMoney.format(voucherDetail.totalAmount)}</strong>
+                </div>
+                {voucherDetail.voucher.narration && (
+                  <div className="border-t border-slate-200 pt-4">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Narration</span>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{voucherDetail.voucher.narration}</p>
+                  </div>
+                )}
+              </>
+            ) : null}
+          </aside>
+        </div>
+      )}
 
       <Footer />
     </div>

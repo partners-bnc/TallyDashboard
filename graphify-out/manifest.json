@@ -1,0 +1,932 @@
+{
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\eslint.config.mjs": {
+    "mtime": 1785092171.9479363,
+    "ast_hash": "dfa1f5f6a7037bf39dc510f30b180002",
+    "semantic_hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\next.config.ts": {
+    "mtime": 1785092172.0879948,
+    "ast_hash": "9b77af189a21a7a64e4bd7a426f64176",
+    "semantic_hash": "9b77af189a21a7a64e4bd7a426f64176"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\package.json": {
+    "mtime": 1785491830.3209991,
+    "ast_hash": "443e5c5eaa8c6acf58ef05ca688a279b",
+    "semantic_hash": "443e5c5eaa8c6acf58ef05ca688a279b"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\postcss.config.js": {
+    "mtime": 1785491830.3219743,
+    "ast_hash": "9a248c780e4c76f85b0f492f63a3d417",
+    "semantic_hash": "9a248c780e4c76f85b0f492f63a3d417"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\skills-lock.json": {
+    "mtime": 1785092763.4538085,
+    "ast_hash": "ee4ac1f4bf80e36852d10d77994c9b6a",
+    "semantic_hash": "ee4ac1f4bf80e36852d10d77994c9b6a"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\api\\ledger\\route.ts": {
+    "mtime": 1785094074.1025846,
+    "ast_hash": "9dfa2a5c6faf869ee72fe385a62dcc85",
+    "semantic_hash": "9dfa2a5c6faf869ee72fe385a62dcc85"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\auth\\signout\\route.ts": {
+    "mtime": 1785095057.5398877,
+    "ast_hash": "a96f8508cf6dd4953abd50638ecd6e1e",
+    "semantic_hash": "a96f8508cf6dd4953abd50638ecd6e1e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\dashboard\\ledger\\page.tsx": {
+    "mtime": 1785491830.3365698,
+    "ast_hash": "207e02015f91384da7604a187bc652df",
+    "semantic_hash": "207e02015f91384da7604a187bc652df"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\dashboard\\overview\\page.tsx": {
+    "mtime": 1785827660.4117956,
+    "ast_hash": "05b03fb412603aefe4e1c062f6ce965f",
+    "semantic_hash": "05b03fb412603aefe4e1c062f6ce965f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\dashboard\\page.tsx": {
+    "mtime": 1785491830.3396416,
+    "ast_hash": "7b609a432d1cbc2165849f3d8cff4726",
+    "semantic_hash": "7b609a432d1cbc2165849f3d8cff4726"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\dashboard\\trial-balance\\ledger\\loading.tsx": {
+    "mtime": 1785528201.8357863,
+    "ast_hash": "7286fe421344695c9feae8bf19817b59",
+    "semantic_hash": "7286fe421344695c9feae8bf19817b59"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\dashboard\\trial-balance\\ledger\\page.tsx": {
+    "mtime": 1785827660.4147966,
+    "ast_hash": "75f430db4a2763ad456d03d7a8b3d3b9",
+    "semantic_hash": "75f430db4a2763ad456d03d7a8b3d3b9"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\dashboard\\trial-balance\\loading.tsx": {
+    "mtime": 1785528201.8297772,
+    "ast_hash": "34c6491f3b1aecfed3aceb3caa84fdf5",
+    "semantic_hash": "34c6491f3b1aecfed3aceb3caa84fdf5"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\dashboard\\trial-balance\\page.tsx": {
+    "mtime": 1785842494.9465652,
+    "ast_hash": "ea50fc3dbd1f41b4a8fb33f894ad0b76",
+    "semantic_hash": "ea50fc3dbd1f41b4a8fb33f894ad0b76"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\layout.test.tsx": {
+    "mtime": 1785491830.3416455,
+    "ast_hash": "981c71e9063bf43e180662a90d0cdbf1",
+    "semantic_hash": "981c71e9063bf43e180662a90d0cdbf1"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\layout.tsx": {
+    "mtime": 1785491830.3426414,
+    "ast_hash": "afc18e5b382ff65a1897e34e5392ca41",
+    "semantic_hash": "afc18e5b382ff65a1897e34e5392ca41"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\login\\page.tsx": {
+    "mtime": 1785491830.3446467,
+    "ast_hash": "d8d0c1b1e6870b4ca367025ba91d0d5d",
+    "semantic_hash": "d8d0c1b1e6870b4ca367025ba91d0d5d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\page.tsx": {
+    "mtime": 1785491830.3456457,
+    "ast_hash": "60c015a865ca41479d5e1b6c7ee3fc2d",
+    "semantic_hash": "60c015a865ca41479d5e1b6c7ee3fc2d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\app\\providers.tsx": {
+    "mtime": 1785093116.8099413,
+    "ast_hash": "fdf33bc963c756143fe8c556d17b6fc1",
+    "semantic_hash": "fdf33bc963c756143fe8c556d17b6fc1"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\components\\dashboard-selector.tsx": {
+    "mtime": 1785491830.3518424,
+    "ast_hash": "2eda225a201567737713b2c6ffc4dfc9",
+    "semantic_hash": "2eda225a201567737713b2c6ffc4dfc9"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\components\\dashboard.tsx": {
+    "mtime": 1786017307.5971415,
+    "ast_hash": "bb1e3da3703842538e56340b2f6f2c6f",
+    "semantic_hash": "bb1e3da3703842538e56340b2f6f2c6f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\components\\ledger-detail.tsx": {
+    "mtime": 1785491830.3564236,
+    "ast_hash": "bc8cf28a680dc2acf9fcbee86d1e3c2d",
+    "semantic_hash": "bc8cf28a680dc2acf9fcbee86d1e3c2d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\components\\trial-balance.tsx": {
+    "mtime": 1786038591.4526262,
+    "ast_hash": "fe4625104a3afdf482b7967ddb68b867",
+    "semantic_hash": "fe4625104a3afdf482b7967ddb68b867"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\components\\ui\\Footer.tsx": {
+    "mtime": 1785491830.3579378,
+    "ast_hash": "cedddc1b0892f8aeeae6dd4c3762ace6",
+    "semantic_hash": "cedddc1b0892f8aeeae6dd4c3762ace6"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\components\\ui\\Header.tsx": {
+    "mtime": 1785491830.3589349,
+    "ast_hash": "bfd9480d88c293d174d2491147cd044d",
+    "semantic_hash": "bfd9480d88c293d174d2491147cd044d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\components\\ui\\Sidebar.tsx": {
+    "mtime": 1785491830.3599315,
+    "ast_hash": "db89036e33bd0dd69b23b84ea02fb637",
+    "semantic_hash": "db89036e33bd0dd69b23b84ea02fb637"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\components\\ui\\dotted-surface.tsx": {
+    "mtime": 1785491830.3609335,
+    "ast_hash": "3aa6dfdfa31aff34193bf1126a22e095",
+    "semantic_hash": "3aa6dfdfa31aff34193bf1126a22e095"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\lib\\data.ts": {
+    "mtime": 1786085112.3754084,
+    "ast_hash": "626c409c30a514390490f757a13a5694",
+    "semantic_hash": "626c409c30a514390490f757a13a5694"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\lib\\env.ts": {
+    "mtime": 1785095056.894744,
+    "ast_hash": "e403e26fe005cc487fa80a1fe92686cd",
+    "semantic_hash": "e403e26fe005cc487fa80a1fe92686cd"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\lib\\period.test.ts": {
+    "mtime": 1785827660.409799,
+    "ast_hash": "c93b861764411d6858664944076c61d8",
+    "semantic_hash": "c93b861764411d6858664944076c61d8"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\lib\\period.ts": {
+    "mtime": 1785827660.4054644,
+    "ast_hash": "790a7996df823c09baf6ca145b8db858",
+    "semantic_hash": "790a7996df823c09baf6ca145b8db858"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\lib\\supabase\\server.ts": {
+    "mtime": 1785095057.2298522,
+    "ast_hash": "3cc16b20b30ef20a4d7f176604986523",
+    "semantic_hash": "3cc16b20b30ef20a4d7f176604986523"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\lib\\trial-balance.test.ts": {
+    "mtime": 1786034042.5912545,
+    "ast_hash": "79df262f32d2417648ea02b0bea6e9a1",
+    "semantic_hash": "79df262f32d2417648ea02b0bea6e9a1"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\lib\\types.ts": {
+    "mtime": 1786040722.168137,
+    "ast_hash": "97cb6cff106214fbbbb0a226a7ad4150",
+    "semantic_hash": "97cb6cff106214fbbbb0a226a7ad4150"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\lib\\utils.ts": {
+    "mtime": 1785491830.3619308,
+    "ast_hash": "6e7a2d4f1fa6b69ad722be7d66f8d57f",
+    "semantic_hash": "6e7a2d4f1fa6b69ad722be7d66f8d57f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\middleware.test.ts": {
+    "mtime": 1785495423.8090367,
+    "ast_hash": "2bccc4bac3fa64b1b73c2c03f28dd2fd",
+    "semantic_hash": "2bccc4bac3fa64b1b73c2c03f28dd2fd"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\middleware.ts": {
+    "mtime": 1785495474.3314333,
+    "ast_hash": "5dacee6c116386d50cb7420e0a51f89e",
+    "semantic_hash": "5dacee6c116386d50cb7420e0a51f89e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\test\\setup.ts": {
+    "mtime": 1785093232.6140485,
+    "ast_hash": "2c271435e60d9aeb6cd3a5e1e122a5c0",
+    "semantic_hash": "2c271435e60d9aeb6cd3a5e1e122a5c0"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260727000000_dashboard_read_contracts.sql": {
+    "mtime": 1785093235.1671436,
+    "ast_hash": "0be322d0179f32df1bc8357d4b68e94f",
+    "semantic_hash": "0be322d0179f32df1bc8357d4b68e94f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260801000000_dashboard_movement_totals.sql": {
+    "mtime": 1785525213.2054358,
+    "ast_hash": "d10a0aafd579605208373232f25251f7",
+    "semantic_hash": "d10a0aafd579605208373232f25251f7"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260801000001_fix_ledger_debit_credit_classification.sql": {
+    "mtime": 1785525233.901791,
+    "ast_hash": "1943b922b23f91f229f35ec2baaeca39",
+    "semantic_hash": "1943b922b23f91f229f35ec2baaeca39"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260801000002_restore_dashboard_rpc_contracts.sql": {
+    "mtime": 1785526627.9068987,
+    "ast_hash": "e33abaa8f4246142cacec8ef89196f7d",
+    "semantic_hash": "e33abaa8f4246142cacec8ef89196f7d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260801000003_trial_balance_rpc.sql": {
+    "mtime": 1785528356.5840008,
+    "ast_hash": "734b5f7a525f652e508905262dc246b8",
+    "semantic_hash": "734b5f7a525f652e508905262dc246b8"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260804000000_trial_balance_period_movement.sql": {
+    "mtime": 1785827738.270612,
+    "ast_hash": "899e88c0bc0aea6629ed4193965077dd",
+    "semantic_hash": "899e88c0bc0aea6629ed4193965077dd"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260804000001_trial_balance_as_of.sql": {
+    "mtime": 1785842494.9505649,
+    "ast_hash": "9bbf42d86594a64ab6b2f85217798ba3",
+    "semantic_hash": "9bbf42d86594a64ab6b2f85217798ba3"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260806000000_reconciled_history.sql": {
+    "mtime": 1786017660.920101,
+    "ast_hash": "153f2a3228540c998e28a69660243c9e",
+    "semantic_hash": "153f2a3228540c998e28a69660243c9e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260806010000_tally_verification_snapshots.sql": {
+    "mtime": 1786034259.360996,
+    "ast_hash": "a071a17ce4d37fa0c9ce0cf51992ee27",
+    "semantic_hash": "a071a17ce4d37fa0c9ce0cf51992ee27"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260806020000_tally_trial_balance_snapshots.sql": {
+    "mtime": 1786037575.7562346,
+    "ast_hash": "b66a6a6fadc043a29510eab41c1a8010",
+    "semantic_hash": "b66a6a6fadc043a29510eab41c1a8010"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260807000000_accounting_eligibility.sql": {
+    "mtime": 1786040786.1094081,
+    "ast_hash": "b93c767650919576561328114b5ae464",
+    "semantic_hash": "b93c767650919576561328114b5ae464"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\supabase\\migrations\\20260807010000_exclude_all_order_vouchers.sql": {
+    "mtime": 1786085089.8138857,
+    "ast_hash": "d192f804e7b375c98bd22ab12b14ed03",
+    "semantic_hash": "d192f804e7b375c98bd22ab12b14ed03"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\tailwind.config.ts": {
+    "mtime": 1785491830.3629327,
+    "ast_hash": "cd77cb0193b87de6e513d1884649b26f",
+    "semantic_hash": "cd77cb0193b87de6e513d1884649b26f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\tsconfig.json": {
+    "mtime": 1785092187.0721812,
+    "ast_hash": "ee17fd1c97c735e9f3564e3f5251f125",
+    "semantic_hash": "ee17fd1c97c735e9f3564e3f5251f125"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\vitest.config.ts": {
+    "mtime": 1785093232.610054,
+    "ast_hash": "0793f926a27cae523ace38102eb146d0",
+    "semantic_hash": "0793f926a27cae523ace38102eb146d0"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\design-taste-frontend-v1\\SKILL.md": {
+    "mtime": 1785092727.6798885,
+    "ast_hash": "05b271f9985412ac9c081a0511bb6cbe",
+    "semantic_hash": "05b271f9985412ac9c081a0511bb6cbe"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\SKILL.md": {
+    "mtime": 1785092538.5890021,
+    "ast_hash": "d7426dae6b0f801c7a2513f4d31f8154",
+    "semantic_hash": "d7426dae6b0f801c7a2513f4d31f8154"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\anti-patterns.md": {
+    "mtime": 1785092538.5890021,
+    "ast_hash": "67eeec57e8fffba833fe63764e2802f7",
+    "semantic_hash": "67eeec57e8fffba833fe63764e2802f7"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\assets.md": {
+    "mtime": 1785092538.5900116,
+    "ast_hash": "bb89939f35ef1050c893f2000a4893ac",
+    "semantic_hash": "bb89939f35ef1050c893f2000a4893ac"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\color.md": {
+    "mtime": 1785092538.5910184,
+    "ast_hash": "4fa4ce7d67feeaf2ef9cb2e7809ebd74",
+    "semantic_hash": "4fa4ce7d67feeaf2ef9cb2e7809ebd74"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\component-cookbook.md": {
+    "mtime": 1785092538.5910184,
+    "ast_hash": "757922ad90573bdff62a5ade37ecba23",
+    "semantic_hash": "757922ad90573bdff62a5ade37ecba23"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\c1-outlined-chip.md": {
+    "mtime": 1785092538.5920146,
+    "ast_hash": "e0380862ce5f7d9b9d4bff057f7948ba",
+    "semantic_hash": "e0380862ce5f7d9b9d4bff057f7948ba"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\c2-inline-form-as-cta.md": {
+    "mtime": 1785092538.5920146,
+    "ast_hash": "dfa6ec433c6f459e971c11f00beda8e0",
+    "semantic_hash": "dfa6ec433c6f459e971c11f00beda8e0"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\c3-typographic-link.md": {
+    "mtime": 1785092538.593025,
+    "ast_hash": "65b6a6717a99445cdf5b004eb2ab4e71",
+    "semantic_hash": "65b6a6717a99445cdf5b004eb2ab4e71"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\c4-sticky-bottom-bar.md": {
+    "mtime": 1785092538.593025,
+    "ast_hash": "ee49dfae4acf741d7eb00f6e13e36368",
+    "semantic_hash": "ee49dfae4acf741d7eb00f6e13e36368"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\f1-bento-grid.md": {
+    "mtime": 1785092538.593025,
+    "ast_hash": "56e4ffcc34e1296b896abefe19de12c2",
+    "semantic_hash": "56e4ffcc34e1296b896abefe19de12c2"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\f2-sticky-scroll-stack.md": {
+    "mtime": 1785092538.594033,
+    "ast_hash": "cc6e48996ee461bf778c7f6d3539a337",
+    "semantic_hash": "cc6e48996ee461bf778c7f6d3539a337"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\f3-tabular-spec-sheet.md": {
+    "mtime": 1785092538.594033,
+    "ast_hash": "d88500b91e7a4c7d5ffc6c89e9373648",
+    "semantic_hash": "d88500b91e7a4c7d5ffc6c89e9373648"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\f4-step-sequence.md": {
+    "mtime": 1785092538.594033,
+    "ast_hash": "1fa4053851ee66b3ce330769a4a69831",
+    "semantic_hash": "1fa4053851ee66b3ce330769a4a69831"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\f5-annotated-screenshot.md": {
+    "mtime": 1785092538.5952146,
+    "ast_hash": "db054b286be958578aa91289c89e523a",
+    "semantic_hash": "db054b286be958578aa91289c89e523a"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\f6-product-card-grid.md": {
+    "mtime": 1785092538.5952146,
+    "ast_hash": "e6068713ae7b8354e198dab6ebad39c2",
+    "semantic_hash": "e6068713ae7b8354e198dab6ebad39c2"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\ft1-mast-headed.md": {
+    "mtime": 1785092538.5952146,
+    "ast_hash": "71184d87af98d5be544c87863c48744c",
+    "semantic_hash": "71184d87af98d5be544c87863c48744c"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\ft2-inline-rule-single-line.md": {
+    "mtime": 1785092538.5952146,
+    "ast_hash": "df1f748ee41d2ca8a8d66ec6a8345e6d",
+    "semantic_hash": "df1f748ee41d2ca8a8d66ec6a8345e6d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\ft3-index-style-category-list.md": {
+    "mtime": 1785092538.5966802,
+    "ast_hash": "7d15149ea2a9373a3930bd6f642c24ea",
+    "semantic_hash": "7d15149ea2a9373a3930bd6f642c24ea"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\ft4-dense-typographic.md": {
+    "mtime": 1785092538.5966802,
+    "ast_hash": "6389a5ffbde587ea61e5271b70bf8e3f",
+    "semantic_hash": "6389a5ffbde587ea61e5271b70bf8e3f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\ft5-statement.md": {
+    "mtime": 1785092538.5966802,
+    "ast_hash": "8b519503a163d1a8e5ad48d1792af181",
+    "semantic_hash": "8b519503a163d1a8e5ad48d1792af181"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\ft6-letter-close.md": {
+    "mtime": 1785092538.597689,
+    "ast_hash": "d74507deebbba28380536496f4bfa6db",
+    "semantic_hash": "d74507deebbba28380536496f4bfa6db"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\ft7-newsletter-first.md": {
+    "mtime": 1785092538.597689,
+    "ast_hash": "38b1fca4ccea18e3c27932068240f1c2",
+    "semantic_hash": "38b1fca4ccea18e3c27932068240f1c2"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\ft8-marquee-scroll.md": {
+    "mtime": 1785092538.5986917,
+    "ast_hash": "23a89edfebfd339a673e30152e94452f",
+    "semantic_hash": "23a89edfebfd339a673e30152e94452f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\h1-marquee.md": {
+    "mtime": 1785092538.5986917,
+    "ast_hash": "1004e4c27ce5605675e213a8f478216d",
+    "semantic_hash": "1004e4c27ce5605675e213a8f478216d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\h2-split-diptych.md": {
+    "mtime": 1785092538.5998204,
+    "ast_hash": "11a4deca92a0e9934d32b35ef364ef46",
+    "semantic_hash": "11a4deca92a0e9934d32b35ef364ef46"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\h3-quote-led.md": {
+    "mtime": 1785092538.6008294,
+    "ast_hash": "07d17854c699a43b07253700598d3fb3",
+    "semantic_hash": "07d17854c699a43b07253700598d3fb3"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\h4-stat-led.md": {
+    "mtime": 1785092538.6008294,
+    "ast_hash": "d0c7aae4da6af4936f33f03841ab6bf9",
+    "semantic_hash": "d0c7aae4da6af4936f33f03841ab6bf9"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\h5-letter-hero.md": {
+    "mtime": 1785092538.6018436,
+    "ast_hash": "0f035029bfe0c8fab68a452b0c32c176",
+    "semantic_hash": "0f035029bfe0c8fab68a452b0c32c176"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\h6-photographic-fold.md": {
+    "mtime": 1785092538.6018436,
+    "ast_hash": "128db96850e41b9db1fcbc05a05871e0",
+    "semantic_hash": "128db96850e41b9db1fcbc05a05871e0"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\h7-demo-video-clipped-by-viewport-edge.md": {
+    "mtime": 1785092538.6028318,
+    "ast_hash": "8a8cc260d84c34fd3d279e2006e3c01f",
+    "semantic_hash": "8a8cc260d84c34fd3d279e2006e3c01f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\h8-mockup-split-browser-framed.md": {
+    "mtime": 1785092538.6028318,
+    "ast_hash": "8f9ac1151a4341ec791032e06d8b84a8",
+    "semantic_hash": "8f9ac1151a4341ec791032e06d8b84a8"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\h9-custom-illustration-centerpiece.md": {
+    "mtime": 1785092538.6038294,
+    "ast_hash": "de05bd5b2506b724ffa199b14be5be0d",
+    "semantic_hash": "de05bd5b2506b724ffa199b14be5be0d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n1-wordmark-2-links.md": {
+    "mtime": 1785092538.6038294,
+    "ast_hash": "3d4646aa3b36217f0b550addfe3ed817",
+    "semantic_hash": "3d4646aa3b36217f0b550addfe3ed817"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n10-floating-on-scroll-morph.md": {
+    "mtime": 1785092538.6048336,
+    "ast_hash": "3ad2dd4aff4113c48fec68c8fa13cca2",
+    "semantic_hash": "3ad2dd4aff4113c48fec68c8fa13cca2"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n11-mega-menu.md": {
+    "mtime": 1785092538.6048336,
+    "ast_hash": "81fb3453d0aa5d9687632a2aeddf9af7",
+    "semantic_hash": "81fb3453d0aa5d9687632a2aeddf9af7"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n12-banner-retract.md": {
+    "mtime": 1785092538.6048336,
+    "ast_hash": "c89fad9144e8b2cdd33441a08657351f",
+    "semantic_hash": "c89fad9144e8b2cdd33441a08657351f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n13-inline-cmdk-pill.md": {
+    "mtime": 1785092538.6058319,
+    "ast_hash": "b1aa6eb494e4ab51be96f14d9c8de386",
+    "semantic_hash": "b1aa6eb494e4ab51be96f14d9c8de386"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n1b-saas-three-section.md": {
+    "mtime": 1785092538.6058319,
+    "ast_hash": "a70343a1d13fb9cc92ba9bea0c48cb21",
+    "semantic_hash": "a70343a1d13fb9cc92ba9bea0c48cb21"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n2-floating-chip.md": {
+    "mtime": 1785092538.6058319,
+    "ast_hash": "ec75783e88fe4b9f4bf5e94cecc8b364",
+    "semantic_hash": "ec75783e88fe4b9f4bf5e94cecc8b364"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n3-side-rail.md": {
+    "mtime": 1785092538.6068316,
+    "ast_hash": "6473551ea9e671948935b5070fe80d01",
+    "semantic_hash": "6473551ea9e671948935b5070fe80d01"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n4-hidden-behind-k.md": {
+    "mtime": 1785092538.6068316,
+    "ast_hash": "3477f3a17dc3563707877048a5028b5e",
+    "semantic_hash": "3477f3a17dc3563707877048a5028b5e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n5-floating-pill.md": {
+    "mtime": 1785092538.6068316,
+    "ast_hash": "9f56ea9d0ec4ad0535e4bfc7a6a465ba",
+    "semantic_hash": "9f56ea9d0ec4ad0535e4bfc7a6a465ba"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n6-newspaper-masthead.md": {
+    "mtime": 1785092538.6068316,
+    "ast_hash": "a5c1c136fe4430bcdc3a7eef0825895d",
+    "semantic_hash": "a5c1c136fe4430bcdc3a7eef0825895d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n7-brutal-slab.md": {
+    "mtime": 1785092538.6078436,
+    "ast_hash": "f5ac03e718256462a29b7da0e100c57c",
+    "semantic_hash": "f5ac03e718256462a29b7da0e100c57c"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n8-terminal-command.md": {
+    "mtime": 1785092538.6078436,
+    "ast_hash": "6ca782b4d324dd487f50afe755fd83ed",
+    "semantic_hash": "6ca782b4d324dd487f50afe755fd83ed"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\n9-edge-aligned-minimal.md": {
+    "mtime": 1785092538.6078436,
+    "ast_hash": "18a927c6257efa32b2c07c8ff41a08fe",
+    "semantic_hash": "18a927c6257efa32b2c07c8ff41a08fe"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\s1-left-margin-numbered.md": {
+    "mtime": 1785092538.6088438,
+    "ast_hash": "70cdcbf71bc502371996343403c32529",
+    "semantic_hash": "70cdcbf71bc502371996343403c32529"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\s2-hanging.md": {
+    "mtime": 1785092538.6088438,
+    "ast_hash": "e37a9648995a657137285d227e9899c7",
+    "semantic_hash": "e37a9648995a657137285d227e9899c7"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\s3-sticky-pinned.md": {
+    "mtime": 1785092538.6088438,
+    "ast_hash": "516c0418ee63a3441bf317d041b937d2",
+    "semantic_hash": "516c0418ee63a3441bf317d041b937d2"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\s4-inline-no-break.md": {
+    "mtime": 1785092538.6098444,
+    "ast_hash": "b3f9073862be369d58eb726bd0fa8545",
+    "semantic_hash": "b3f9073862be369d58eb726bd0fa8545"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\s5-bottom-anchored.md": {
+    "mtime": 1785092538.6098444,
+    "ast_hash": "81facb95d97a3a24c6aead2efe86d9b5",
+    "semantic_hash": "81facb95d97a3a24c6aead2efe86d9b5"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\t1-pull-quote-with-marginalia.md": {
+    "mtime": 1785092538.6098444,
+    "ast_hash": "d7b2dd85795741f29f37fe61a2a1cd4f",
+    "semantic_hash": "d7b2dd85795741f29f37fe61a2a1cd4f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\t2-logo-wall-hairline.md": {
+    "mtime": 1785092538.6098444,
+    "ast_hash": "0627279157e97b08c08b22ba3dd58be8",
+    "semantic_hash": "0627279157e97b08c08b22ba3dd58be8"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\t3-single-huge-quote.md": {
+    "mtime": 1785092538.6108444,
+    "ast_hash": "08c00825f3c1ad38678a86e4f9b88f81",
+    "semantic_hash": "08c00825f3c1ad38678a86e4f9b88f81"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\components\\t4-numbered-stat-strip.md": {
+    "mtime": 1785092538.6108444,
+    "ast_hash": "8cd7b7d9f434c8e934d45d3401fc6cbc",
+    "semantic_hash": "8cd7b7d9f434c8e934d45d3401fc6cbc"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\contract.md": {
+    "mtime": 1785092538.6108444,
+    "ast_hash": "9f3b43447032e7e91c6f6e9bed5791aa",
+    "semantic_hash": "9f3b43447032e7e91c6f6e9bed5791aa"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\copy.md": {
+    "mtime": 1785092538.6118438,
+    "ast_hash": "dc4d146c81a4526bc7546d08188d877d",
+    "semantic_hash": "dc4d146c81a4526bc7546d08188d877d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\custom-craft.md": {
+    "mtime": 1785092538.6118438,
+    "ast_hash": "8a27744c22bb9ea60f9efb31db48c365",
+    "semantic_hash": "8a27744c22bb9ea60f9efb31db48c365"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\custom-theme.md": {
+    "mtime": 1785092538.6128435,
+    "ast_hash": "e65a4b69efaf7d04e5acc717ea913ece",
+    "semantic_hash": "e65a4b69efaf7d04e5acc717ea913ece"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\design-md.md": {
+    "mtime": 1785092538.6128435,
+    "ast_hash": "ce64319d5ad41f043af85381f5bd2447",
+    "semantic_hash": "ce64319d5ad41f043af85381f5bd2447"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\export-formats.md": {
+    "mtime": 1785092538.6128435,
+    "ast_hash": "1a7e5a030956198cafd259c61c586909",
+    "semantic_hash": "1a7e5a030956198cafd259c61c586909"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\floating-nav.md": {
+    "mtime": 1785092538.6138442,
+    "ast_hash": "d74fd3531b613fbc2f443c467c1deebe",
+    "semantic_hash": "d74fd3531b613fbc2f443c467c1deebe"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\genres\\atmospheric.md": {
+    "mtime": 1785092538.614898,
+    "ast_hash": "a2648c838bab0eb283ec37dbe09ec6cc",
+    "semantic_hash": "a2648c838bab0eb283ec37dbe09ec6cc"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\genres\\editorial.md": {
+    "mtime": 1785092538.614898,
+    "ast_hash": "75c137c601e757b4af1e083836b0905a",
+    "semantic_hash": "75c137c601e757b4af1e083836b0905a"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\genres\\modern-minimal.md": {
+    "mtime": 1785092538.6158414,
+    "ast_hash": "01f60d6af3a3b1aa5e27e4b5df5a8e1a",
+    "semantic_hash": "01f60d6af3a3b1aa5e27e4b5df5a8e1a"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\genres\\playful.md": {
+    "mtime": 1785092538.6168425,
+    "ast_hash": "b60a67dc7eb6ff775bbfa6a210408877",
+    "semantic_hash": "b60a67dc7eb6ff775bbfa6a210408877"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\hero-enrichment.md": {
+    "mtime": 1785092538.617921,
+    "ast_hash": "96d34ec01b8e8ee56695bc7d402459e4",
+    "semantic_hash": "96d34ec01b8e8ee56695bc7d402459e4"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\imagery-kit.md": {
+    "mtime": 1785092538.617921,
+    "ast_hash": "400397e1db62eeffda9d45bf1f7fc351",
+    "semantic_hash": "400397e1db62eeffda9d45bf1f7fc351"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\interaction-and-states.md": {
+    "mtime": 1785092538.618949,
+    "ast_hash": "2ea4e06fa962e3e467046e1ebefe4bc7",
+    "semantic_hash": "2ea4e06fa962e3e467046e1ebefe4bc7"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\layout-and-space.md": {
+    "mtime": 1785092538.618949,
+    "ast_hash": "609a07d773ca0d2e68a4f15e624c8f11",
+    "semantic_hash": "609a07d773ca0d2e68a4f15e624c8f11"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures.md": {
+    "mtime": 1785092538.6199503,
+    "ast_hash": "78b38de3bc563d9b50667e4d995af08d",
+    "semantic_hash": "78b38de3bc563d9b50667e4d995af08d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\01-bento-grid.md": {
+    "mtime": 1785092538.6199503,
+    "ast_hash": "9c93daf763834fdbb562def8ed7e54c4",
+    "semantic_hash": "9c93daf763834fdbb562def8ed7e54c4"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\02-long-document.md": {
+    "mtime": 1785092538.6199503,
+    "ast_hash": "55b023bdc205aeca31547df532220547",
+    "semantic_hash": "55b023bdc205aeca31547df532220547"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\03-marquee-hero.md": {
+    "mtime": 1785092538.6209328,
+    "ast_hash": "dc1f4670d755cb7cc1975f360ab23633",
+    "semantic_hash": "dc1f4670d755cb7cc1975f360ab23633"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\04-stat-led.md": {
+    "mtime": 1785092538.6209328,
+    "ast_hash": "18a8d70351f6aec071882bc55aa07478",
+    "semantic_hash": "18a8d70351f6aec071882bc55aa07478"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\05-workbench.md": {
+    "mtime": 1785092538.6209328,
+    "ast_hash": "7ea1a98705cf6482c509660b00791f5c",
+    "semantic_hash": "7ea1a98705cf6482c509660b00791f5c"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\06-conversational-faq.md": {
+    "mtime": 1785092538.6224542,
+    "ast_hash": "f44b16a06d104c49036ceeff2260530f",
+    "semantic_hash": "f44b16a06d104c49036ceeff2260530f"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\07-manifesto.md": {
+    "mtime": 1785092538.6224542,
+    "ast_hash": "b4cb5fa43f6b5dda4844639bcb21b267",
+    "semantic_hash": "b4cb5fa43f6b5dda4844639bcb21b267"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\08-photographic.md": {
+    "mtime": 1785092538.6224542,
+    "ast_hash": "6ae5f45f6788fe584c86b22219082ee8",
+    "semantic_hash": "6ae5f45f6788fe584c86b22219082ee8"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\09-quote-led.md": {
+    "mtime": 1785092538.6224542,
+    "ast_hash": "1724f51e379d0ec1e6aa1a665790ec8a",
+    "semantic_hash": "1724f51e379d0ec1e6aa1a665790ec8a"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\10-specimen.md": {
+    "mtime": 1785092538.6234777,
+    "ast_hash": "32aa0e4d3ed0c4bbf728aef26c7a0a06",
+    "semantic_hash": "32aa0e4d3ed0c4bbf728aef26c7a0a06"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\11-catalogue.md": {
+    "mtime": 1785092538.6234777,
+    "ast_hash": "ee5c502e2cbf3265012aca91130b3bbc",
+    "semantic_hash": "ee5c502e2cbf3265012aca91130b3bbc"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\12-letter.md": {
+    "mtime": 1785092538.6234777,
+    "ast_hash": "4b6fb196aa6d54e2bb0e287006b86154",
+    "semantic_hash": "4b6fb196aa6d54e2bb0e287006b86154"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\13-index-first.md": {
+    "mtime": 1785092538.624468,
+    "ast_hash": "98db03d735bfa3f4f873f727978d40ef",
+    "semantic_hash": "98db03d735bfa3f4f873f727978d40ef"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\14-narrative-workflow.md": {
+    "mtime": 1785092538.624468,
+    "ast_hash": "cd653a15c7176744e66c00b4c495fea5",
+    "semantic_hash": "cd653a15c7176744e66c00b4c495fea5"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\15-split-studio.md": {
+    "mtime": 1785092538.624468,
+    "ast_hash": "96346ba8bd78142196da2bbdbf882751",
+    "semantic_hash": "96346ba8bd78142196da2bbdbf882751"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\16-feature-stack.md": {
+    "mtime": 1785092538.625468,
+    "ast_hash": "3b56722572870155c4e87aad13e31118",
+    "semantic_hash": "3b56722572870155c4e87aad13e31118"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\17-type-specimen.md": {
+    "mtime": 1785092538.625468,
+    "ast_hash": "0307319e2aaa64f485e7894740963e10",
+    "semantic_hash": "0307319e2aaa64f485e7894740963e10"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\18-portfolio-grid.md": {
+    "mtime": 1785092538.625468,
+    "ast_hash": "6e7a3269193318071e0be6f5aa6ed0c6",
+    "semantic_hash": "6e7a3269193318071e0be6f5aa6ed0c6"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\19-map-diagram.md": {
+    "mtime": 1785092538.6264677,
+    "ast_hash": "406d97afe91a7cd61cd552cd63814903",
+    "semantic_hash": "406d97afe91a7cd61cd552cd63814903"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\20-ecosystem-index.md": {
+    "mtime": 1785092538.6264677,
+    "ast_hash": "112545b1fc821abd66964b2349ca2b70",
+    "semantic_hash": "112545b1fc821abd66964b2349ca2b70"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\macrostructures\\21-component-playground.md": {
+    "mtime": 1785092538.6264677,
+    "ast_hash": "3904363b8c88ee461324c4e17b2df148",
+    "semantic_hash": "3904363b8c88ee461324c4e17b2df148"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\microinteractions.md": {
+    "mtime": 1785092538.6274679,
+    "ast_hash": "7ba36c553be66f4f3d47b892a14ea8fa",
+    "semantic_hash": "7ba36c553be66f4f3d47b892a14ea8fa"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\motion.md": {
+    "mtime": 1785092538.6274679,
+    "ast_hash": "65b222e75e46fb2a923f002254cc41e2",
+    "semantic_hash": "65b222e75e46fb2a923f002254cc41e2"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\preview-examples.md": {
+    "mtime": 1785092538.628467,
+    "ast_hash": "540a4ece2fb1661fcd328213bbc995a4",
+    "semantic_hash": "540a4ece2fb1661fcd328213bbc995a4"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\responsive.md": {
+    "mtime": 1785092538.628467,
+    "ast_hash": "5e0ad8a6ba85daf781453a7e6b8235ea",
+    "semantic_hash": "5e0ad8a6ba85daf781453a7e6b8235ea"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\slop-test.md": {
+    "mtime": 1785092538.6294663,
+    "ast_hash": "121191d1a0e6b46a8210b61ae2e6dfe1",
+    "semantic_hash": "121191d1a0e6b46a8210b61ae2e6dfe1"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\structure.md": {
+    "mtime": 1785092538.6294663,
+    "ast_hash": "38e096d46adc16b8b542bf6ea8eb43e5",
+    "semantic_hash": "38e096d46adc16b8b542bf6ea8eb43e5"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\study.md": {
+    "mtime": 1785092538.6304648,
+    "ast_hash": "be0cde229d866e7efe2df3d585ebdc37",
+    "semantic_hash": "be0cde229d866e7efe2df3d585ebdc37"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\themes\\carnival.md": {
+    "mtime": 1785092538.631475,
+    "ast_hash": "e98a6708e9def7aed36282632801f8b1",
+    "semantic_hash": "e98a6708e9def7aed36282632801f8b1"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\themes\\cobalt.md": {
+    "mtime": 1785092538.6325083,
+    "ast_hash": "9a019a8dcac7c7ddc8728f66c0bfd598",
+    "semantic_hash": "9a019a8dcac7c7ddc8728f66c0bfd598"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\themes\\hum.md": {
+    "mtime": 1785092538.633505,
+    "ast_hash": "b8cbb13e7c79966e4100020595e8188d",
+    "semantic_hash": "b8cbb13e7c79966e4100020595e8188d"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\themes\\lumen.md": {
+    "mtime": 1785092538.633505,
+    "ast_hash": "f2692e83ac7d03e8f9ca62f6ae239f00",
+    "semantic_hash": "f2692e83ac7d03e8f9ca62f6ae239f00"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\typography.md": {
+    "mtime": 1785092538.633505,
+    "ast_hash": "671744da4b214661ee13319e48272d7c",
+    "semantic_hash": "671744da4b214661ee13319e48272d7c"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\verbs\\audit.md": {
+    "mtime": 1785092538.6348698,
+    "ast_hash": "ade1461425029caa8875022a560565b8",
+    "semantic_hash": "ade1461425029caa8875022a560565b8"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\hallmark\\references\\verbs\\redesign.md": {
+    "mtime": 1785092538.6348698,
+    "ast_hash": "d17ada8f7ebe4d63c108e65a1ca5e0cf",
+    "semantic_hash": "d17ada8f7ebe4d63c108e65a1ca5e0cf"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\.agents\\skills\\high-end-visual-design\\SKILL.md": {
+    "mtime": 1785092411.4452534,
+    "ast_hash": "64f7c1069a5a3d18797950d8fac7b63a",
+    "semantic_hash": "64f7c1069a5a3d18797950d8fac7b63a"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\AGENTS.md": {
+    "mtime": 1785092881.5670736,
+    "ast_hash": "573cb4b95cbf9189b5cc3614370c1a2e",
+    "semantic_hash": "573cb4b95cbf9189b5cc3614370c1a2e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\CLAUDE.md": {
+    "mtime": 1785092881.5680716,
+    "ast_hash": "570ec0e0cb3e920f17b039ad4c52d00b",
+    "semantic_hash": "570ec0e0cb3e920f17b039ad4c52d00b"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\README.md": {
+    "mtime": 1785095058.9123683,
+    "ast_hash": "52ab343005551f2facc54b2fab8d5cb7",
+    "semantic_hash": "52ab343005551f2facc54b2fab8d5cb7"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\5e4a8a19-f7b5-4e29-89a9-ad9d693b6111.png": {
+    "mtime": 1785491830.324505,
+    "ast_hash": "aa9e403ff5df4634e5161e50189b8f01",
+    "semantic_hash": "aa9e403ff5df4634e5161e50189b8f01"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\bar-chart.webp": {
+    "mtime": 1785491830.3255138,
+    "ast_hash": "90ec51dba5596c7e14c9910e9ec30c9e",
+    "semantic_hash": "90ec51dba5596c7e14c9910e9ec30c9e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\boxplots.webp": {
+    "mtime": 1785491830.326525,
+    "ast_hash": "17bb0034cd586d716ba7b00eb1ebebaf",
+    "semantic_hash": "17bb0034cd586d716ba7b00eb1ebebaf"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\file.svg": {
+    "mtime": 1785092172.0009537,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\globe.svg": {
+    "mtime": 1785092172.0169868,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": "2aaafa6a49b6563925fe440891e32717"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\heatmap.webp": {
+    "mtime": 1785491830.3280451,
+    "ast_hash": "17bb0034cd586d716ba7b00eb1ebebaf",
+    "semantic_hash": "17bb0034cd586d716ba7b00eb1ebebaf"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\next.svg": {
+    "mtime": 1785092172.0339837,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": "8e061864f388b47f33a1c3780831193e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\src\\assets\\ai chat.png": {
+    "mtime": 1785491830.330057,
+    "ast_hash": "75ad8ae407bf9057b8e8172d405fc7e1",
+    "semantic_hash": "75ad8ae407bf9057b8e8172d405fc7e1"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\src\\assets\\ask question.png": {
+    "mtime": 1785491830.3310559,
+    "ast_hash": "af138a830961e2964355f44c6bf28240",
+    "semantic_hash": "af138a830961e2964355f44c6bf28240"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\src\\assets\\bar-chart.webp": {
+    "mtime": 1785491830.3320534,
+    "ast_hash": "90ec51dba5596c7e14c9910e9ec30c9e",
+    "semantic_hash": "90ec51dba5596c7e14c9910e9ec30c9e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\src\\assets\\csv.png": {
+    "mtime": 1785491830.3320534,
+    "ast_hash": "257198d496e15b70137c2928522ec6b7",
+    "semantic_hash": "257198d496e15b70137c2928522ec6b7"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\src\\assets\\dataverse-ai-high-resolution-logo-transparent 8.49.12\u202fAM.png": {
+    "mtime": 1785491830.333053,
+    "ast_hash": "447e83a34093d6adc41fc3afd6d37073",
+    "semantic_hash": "447e83a34093d6adc41fc3afd6d37073"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\src\\assets\\dataverse-ai-high-resolution-logo-transparent.png": {
+    "mtime": 1785491830.33456,
+    "ast_hash": "447e83a34093d6adc41fc3afd6d37073",
+    "semantic_hash": "447e83a34093d6adc41fc3afd6d37073"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\vercel.svg": {
+    "mtime": 1785092172.0469859,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": "c0af2f507b369b085b35ef4bbe3bcf1e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\public\\window.svg": {
+    "mtime": 1785092172.0549912,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": "a2760511c65806022ad20adf74370ff3"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\assets\\ai chat.png": {
+    "mtime": 1785491830.3466458,
+    "ast_hash": "75ad8ae407bf9057b8e8172d405fc7e1",
+    "semantic_hash": "75ad8ae407bf9057b8e8172d405fc7e1"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\assets\\ask question.png": {
+    "mtime": 1785491830.3476624,
+    "ast_hash": "af138a830961e2964355f44c6bf28240",
+    "semantic_hash": "af138a830961e2964355f44c6bf28240"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\assets\\bar-chart.webp": {
+    "mtime": 1785491830.3476624,
+    "ast_hash": "90ec51dba5596c7e14c9910e9ec30c9e",
+    "semantic_hash": "90ec51dba5596c7e14c9910e9ec30c9e"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\assets\\csv.png": {
+    "mtime": 1785491830.348846,
+    "ast_hash": "257198d496e15b70137c2928522ec6b7",
+    "semantic_hash": "257198d496e15b70137c2928522ec6b7"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\assets\\dataverse-ai-high-resolution-logo-transparent 8.49.12\u202fAM.png": {
+    "mtime": 1785491830.349859,
+    "ast_hash": "447e83a34093d6adc41fc3afd6d37073",
+    "semantic_hash": "447e83a34093d6adc41fc3afd6d37073"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\assets\\dataverse-ai-high-resolution-logo-transparent.png": {
+    "mtime": 1785491830.349859,
+    "ast_hash": "447e83a34093d6adc41fc3afd6d37073",
+    "semantic_hash": "447e83a34093d6adc41fc3afd6d37073"
+  },
+  "C:\\Users\\rohan\\Desktop\\tallybridge-dashboard\\src\\assets\\mX2lljSONA.svg": {
+    "mtime": 1785491830.3508441,
+    "ast_hash": "bc03a90fcf932fb08b6f70e4fff41288",
+    "semantic_hash": "bc03a90fcf932fb08b6f70e4fff41288"
+  }
+}
