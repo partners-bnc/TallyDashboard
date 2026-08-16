@@ -16,7 +16,7 @@ vi.mock('next/server', () => ({
   },
 }))
 
-import { middleware } from './middleware'
+import { proxy } from './proxy'
 
 function requestFor(pathname: string) {
   return {
@@ -27,7 +27,7 @@ function requestFor(pathname: string) {
   } as unknown as NextRequest
 }
 
-describe('middleware authentication', () => {
+describe('proxy authentication', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
@@ -35,7 +35,7 @@ describe('middleware authentication', () => {
   })
 
   it.each(['/', '/login'])('bypasses Supabase auth for public path %s', async (pathname) => {
-    const response = await middleware(requestFor(pathname))
+    const response = await proxy(requestFor(pathname))
 
     expect(response.status).toBe(200)
     expect(createServerClient).not.toHaveBeenCalled()
@@ -45,7 +45,7 @@ describe('middleware authentication', () => {
   it('redirects unauthenticated protected requests to login', async () => {
     getUser.mockResolvedValueOnce({ data: { user: null } })
 
-    const response = await middleware(requestFor('/dashboard'))
+    const response = await proxy(requestFor('/dashboard'))
 
     expect(response.status).toBe(307)
     expect(response.headers.get('location')).toBe('https://tallybridge.test/login')
@@ -55,10 +55,10 @@ describe('middleware authentication', () => {
   it('preserves authenticated protected access and public login access', async () => {
     getUser.mockResolvedValueOnce({ data: { user: { id: 'user-1' } } })
 
-    const response = await middleware(requestFor('/dashboard/overview'))
+    const response = await proxy(requestFor('/dashboard/overview'))
     expect(response.status).toBe(200)
 
-    const loginResponse = await middleware(requestFor('/login'))
+    const loginResponse = await proxy(requestFor('/login'))
     expect(loginResponse.status).toBe(200)
     expect(loginResponse.headers.get('location')).toBeNull()
     expect(getUser).toHaveBeenCalledOnce()

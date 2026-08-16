@@ -14,5 +14,5 @@ const outfit = Outfit({ variable: '--font-outfit', subsets: ['latin'] })
 export const metadata: Metadata = { title: 'TallyOne Ai | AI-Powered Tally Accounting Workspace', description: 'Unified local and cloud server integration, MIS reports, email triggers, and AI financial insights for Tally.' }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${outfit.variable}`}><body><Providers>{children}</Providers></body></html>
+  return <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${outfit.variable}`} suppressHydrationWarning><body><Providers>{children}</Providers></body></html>
 }

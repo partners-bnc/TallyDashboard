@@ -186,20 +186,36 @@ export function Dashboard({
 
                   <div className="flex items-center gap-1.5">
                     {selectedCompanyId && (
-                      <button
-                        type="button"
-                        className={styles.trialBalanceButton}
-                        disabled={isTransitioning}
-                        onClick={() => {
-                          setIsTransitioning(true)
-                          const params = new URLSearchParams({ org: selectedOrganizationId ?? '', company: selectedCompanyId })
-                          if (from) params.set('from', from)
-                          if (to) params.set('to', to)
-                          window.location.assign(`/dashboard/trial-balance?${params.toString()}`)
-                        }}
-                      >
-                        Trial Balance
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className={styles.trialBalanceButton}
+                          disabled={isTransitioning}
+                          onClick={() => {
+                            setIsTransitioning(true)
+                            const params = new URLSearchParams({ org: selectedOrganizationId ?? '', company: selectedCompanyId })
+                            if (from) params.set('from', from)
+                            if (to) params.set('to', to)
+                            window.location.assign(`/dashboard/trial-balance?${params.toString()}`)
+                          }}
+                        >
+                          Trial Balance
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.trialBalanceButton}
+                          disabled={isTransitioning}
+                          onClick={() => {
+                            setIsTransitioning(true)
+                            const params = new URLSearchParams({ org: selectedOrganizationId ?? '', company: selectedCompanyId })
+                            if (from) params.set('from', from)
+                            if (to) params.set('to', to)
+                            window.location.assign(`/dashboard/funds-flow?${params.toString()}`)
+                          }}
+                        >
+                          Funds Flow
+                        </button>
+                      </>
                     )}
                     <div className={styles.dateControl}>
                       <button onClick={() => setDateOpen(!dateOpen)} className={styles.dateButton} aria-expanded={dateOpen} disabled={isTransitioning}>

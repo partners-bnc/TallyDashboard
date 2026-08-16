@@ -187,7 +187,7 @@ export default function LandingPage() {
 
                       {/* Excel icon - top left */}
                       <div className="absolute left-4 top-4 w-11 h-11 bg-white rounded-xl border border-slate-200 flex items-center justify-center shadow-md z-10 transition-transform duration-500 group-hover:-translate-y-2 group-hover:-translate-x-2">
-                        <img src="/src/assets/excel.png" alt="Excel" className="w-7 h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        <img src="/src/assets/excel.svg" alt="Excel" className="w-7 h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                       </div>
 
                       {/* XLSX label - top center */}
@@ -203,7 +203,7 @@ export default function LandingPage() {
 
                       {/* Google Drive icon - top right */}
                       <div className="absolute right-8 top-8 w-11 h-11 bg-white rounded-xl border border-slate-200 flex items-center justify-center shadow-md z-10 transition-transform duration-500 group-hover:-translate-y-2 group-hover:translate-x-2">
-                        <img src="/src/assets/google-drive.png" alt="Google Drive" className="w-7 h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        <img src="/src/assets/google-drive.svg" alt="Google Drive" className="w-7 h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                       </div>
 
                       {/* CSV icon - bottom left */}
@@ -224,7 +224,7 @@ export default function LandingPage() {
 
                       {/* Google Sheets icon - bottom right */}
                       <div className="absolute right-8 bottom-8 w-11 h-11 bg-white rounded-xl border border-slate-200 flex items-center justify-center shadow-md z-10 transition-transform duration-500 group-hover:translate-y-2 group-hover:translate-x-2">
-                        <img src="/src/assets/google-sheets.png" alt="Google Sheets" className="w-7 h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        <img src="/src/assets/google-sheets.svg" alt="Google Sheets" className="w-7 h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                       </div>
                     </div>
 
@@ -339,7 +339,7 @@ export default function LandingPage() {
               <div className="relative w-full max-w-6xl mx-auto">
                 <div className="relative bg-gradient-to-br from-cyan-100 via-blue-100 to-blue-200 rounded-3xl p-8 shadow-2xl min-h-[600px]">
                   <div className="absolute top-8 right-8 flex gap-4">
-                    <img src="/src/assets/gmail.png" alt="Gmail" className="w-12 h-12 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                    <img src="/src/assets/gmail.svg" alt="Gmail" className="w-12 h-12 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   </div>
                   
                   {/* 3D Report Photos Section */}

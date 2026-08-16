@@ -126,5 +126,61 @@ export type LedgerMonthlyData = {
 
 
 
+export interface FundsFlowLedger {
+  ledgerName: string
+  closingBalance: number
+  ledgerId?: string
+}
+
+export interface FundsFlowEntry {
+  date: string
+  particulars: string
+  nature: string
+  debit: number
+  credit: number
+  amount: number
+}
+
+export interface FundsFlowSubgroup {
+  subgroupName: string
+  debitTotal: number
+  creditTotal: number
+  netMovement: number
+  closingBalance: number
+  ledgers: FundsFlowLedger[]
+  voucherLines: FundsFlowEntry[]
+}
+
+export interface FundsFlowGroup {
+  groupName: string
+  debitTotal: number
+  creditTotal: number
+  netMovement: number
+  subgroups: FundsFlowSubgroup[]
+}
+
+export interface FundsFlowSummary {
+  groups: Array<{
+    groupName: string
+    debitTotal: number
+    creditTotal: number
+    netMovement: number
+  }>
+  totalDebits: number
+  totalCredits: number
+  netMovement: number
+}
+
+export interface FundsFlowData {
+  groups: FundsFlowGroup[]
+  summary: FundsFlowSummary
+  sync: {
+    error: string | null
+  }
+  history: HistoryCoverage
+}
+
+
+
 
 

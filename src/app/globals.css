@@ -19,6 +19,17 @@
   --radius-sm: 8px; --radius-md: 14px; --radius-lg: 22px;
   --shadow-soft: 0 18px 50px -35px oklch(25% 0.04 245 / 0.32);
 }
+
+.dark {
+  --background: oklch(14% 0.01 255);
+  --foreground: oklch(95% 0.005 255);
+  --paper: oklch(18% 0.012 255);
+  --muted: oklch(65% 0.01 255);
+  --rule: oklch(26% 0.015 255);
+  --accent: oklch(60% 0.12 245);
+  --accent-soft: oklch(24% 0.06 245);
+}
+
 * { box-sizing: border-box; }
 html, body { max-width: 100%; overflow-x: clip; }
 body { min-height: 100dvh; margin: 0; color: var(--foreground); background: var(--background); font-family: var(--font-inter), var(--font-geist-sans), sans-serif; -webkit-font-smoothing: antialiased; }
@@ -29,7 +40,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 @layer components {
   .glass {
-    @apply bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg;
+    @apply bg-white/80 dark:bg-black/40 backdrop-blur-sm border border-white/20 dark:border-white/10 shadow-lg;
   }
   
   .gradient-bg {
@@ -59,4 +70,149 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .font-google-sans {
     font-family: 'Google Sans', sans-serif !important;
   }
+}
+
+/* Global utility overrides for dark mode */
+.dark body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.dark .bg-white {
+  background-color: var(--paper) !important;
+}
+
+.dark .text-slate-900 {
+  color: var(--foreground) !important;
+}
+
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: var(--foreground) !important;
+}
+
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: var(--muted) !important;
+}
+
+.dark .border-slate-200,
+.dark .border-slate-100 {
+  border-color: var(--rule) !important;
+}
+
+.dark .bg-slate-50 {
+  background-color: var(--background) !important;
+}
+
+.dark .bg-\[\#F3F7FB\] {
+  background-color: var(--accent-soft) !important;
+}
+
+.dark .bg-\[\#F3F7FB\] .bg-white {
+  background-color: var(--paper) !important;
+}
+
+.dark .text-slate-880 {
+  color: var(--foreground) !important;
+}
+
+.dark .bg-slate-50\/50 {
+  background-color: var(--background) !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: var(--background) !important;
+}
+
+.dark .bg-blue-50 {
+  background-color: var(--accent-soft) !important;
+}
+
+.dark .border-blue-100 {
+  border-color: var(--rule) !important;
+}
+
+/* Core theme utility mappings */
+.bg-paper {
+  background-color: var(--paper) !important;
+}
+.border-rule {
+  border-color: var(--rule) !important;
+}
+.text-foreground {
+  color: var(--foreground) !important;
+}
+.text-muted {
+  color: var(--muted) !important;
+}
+
+/* Dark mode image override for white-background logos */
+.dark img[alt="TallyOne Ai"] {
+  filter: brightness(0) invert(1) !important;
+  mix-blend-mode: normal !important;
+}
+
+/* Tailwind Gray Overrides for Dark Mode */
+.dark .text-gray-900 {
+  color: var(--foreground) !important;
+}
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-gray-600 {
+  color: var(--foreground) !important;
+}
+.dark .text-gray-500,
+.dark .text-gray-400 {
+  color: var(--muted) !important;
+}
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: var(--rule) !important;
+}
+.dark .bg-gray-50,
+.dark .bg-gray-100 {
+  background-color: var(--background) !important;
+}
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover {
+  background-color: var(--rule) !important;
+}
+.dark .group:hover .group-hover\:text-gray-900 {
+  color: var(--foreground) !important;
+}
+
+/* Table color-mix overrides for dark mode */
+.dark [class*="groupRow"] {
+  background: color-mix(in oklch, var(--accent-soft) 35%, var(--paper)) !important;
+}
+.dark [class*="rowUnifiedPrimary"] {
+  background: color-mix(in oklch, var(--accent-soft) 40%, var(--paper)) !important;
+}
+.dark [class*="rowUnifiedTotal"] {
+  background: color-mix(in oklch, var(--accent-soft) 20%, var(--paper)) !important;
+}
+.dark [class*="totalRow"] {
+  background: color-mix(in oklch, var(--accent-soft) 20%, var(--paper)) !important;
+}
+.dark [class*="grandTotalRow"] {
+  background: color-mix(in oklch, var(--accent-soft) 40%, var(--paper)) !important;
+}
+
+/* Red/Green contrast overrides for dark mode readability */
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: oklch(65% 0.15 25) !important;
+}
+.dark .text-green-600,
+.dark .text-green-700,
+.dark .text-green-800 {
+  color: oklch(70% 0.14 140) !important;
+}
+
+/* Page container bg-background wrapper overrides for dark mode */
+.dark .bg-background {
+  background-color: var(--background) !important;
 }

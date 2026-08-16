@@ -1,0 +1,554 @@
+.shell {
+  width: min(1400px, 100%);
+  margin: 0 auto;
+  padding: 24px clamp(20px, 5vw, 72px) 96px;
+  animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 16px 0 28px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.header h1 {
+  margin: 4px 0;
+  font-size: clamp(24px, 4vw, 36px);
+  letter-spacing: -.05em;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font: 600 10px var(--font-geist-mono), monospace;
+  text-transform: uppercase;
+  letter-spacing: .15em;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 9999px;
+  background: var(--paper);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.backButton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.exportButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--rule);
+  border-radius: 9999px;
+  background: var(--paper);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.exportButton:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.periodForm {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.periodForm label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.periodForm input {
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  border-radius: 9999px;
+  background: var(--paper);
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.periodForm button {
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--accent);
+  border-radius: 9999px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.periodForm button:hover {
+  opacity: 0.95;
+}
+
+.warning, .state {
+  padding: 28px;
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--muted);
+  text-align: center;
+}
+
+.warning {
+  margin-bottom: 20px;
+  border-color: var(--negative);
+  color: var(--negative);
+  text-align: left;
+}
+
+.tabsContainer {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 4px 12px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.tab {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  background: var(--accent-soft);
+  color: var(--foreground);
+}
+
+.activeTab {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.reportContent {
+  animation: fadeIn 0.4s ease;
+}
+
+/* Summary Grid Styles */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+@media (max-width: 960px) {
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summaryColumn {
+  display: flex;
+  flex-col: column;
+  gap: 12px;
+}
+
+.columnTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--foreground);
+  padding-left: 4px;
+  letter-spacing: -0.01em;
+}
+
+.tableWrap {
+  overflow: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  box-shadow: var(--shadow-soft);
+}
+
+.tableHead, .row, .totalRow, .grandTotalRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 50px 140px;
+  align-items: center;
+}
+
+.tableHead {
+  padding: 12px 18px;
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.tableHead span:last-child, .row span:last-child, .totalRow strong:last-child, .grandTotalRow strong:last-child {
+  text-align: right;
+}
+
+.row {
+  padding: 11px 18px;
+  border-top: 1px solid var(--rule);
+  color: var(--foreground);
+  font-size: 13px;
+  transition: background 0.15s ease;
+}
+
+.drillableRow {
+  cursor: pointer;
+}
+
+.drillableRow:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.refCode {
+  color: var(--muted);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.valueAmt {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.totalRow {
+  padding: 14px 18px;
+  border-top: 1.5px solid var(--foreground);
+  background: color-mix(in oklch, var(--accent-soft) 20%, white);
+  color: var(--foreground);
+}
+
+.grandTotalRow {
+  padding: 15px 18px;
+  border-top: 2px solid var(--foreground);
+  background: color-mix(in oklch, var(--accent-soft) 40%, white);
+  color: var(--foreground);
+}
+
+/* Detail Grids */
+.detailGridHeader, .detailRow {
+  display: grid;
+  grid-template-columns: 100px minmax(200px, 1.5fr) 180px 140px;
+  align-items: center;
+}
+
+.grid3 {
+  grid-template-columns: minmax(200px, 1.5fr) 180px 140px !important;
+}
+
+.grid2 {
+  grid-template-columns: minmax(200px, 1.5fr) 140px !important;
+}
+
+.detailGridHeader {
+  padding: 12px 20px;
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.detailGridHeader span:last-child, .detailRow span:last-child {
+  text-align: right;
+}
+
+.detailRow {
+  padding: 12px 20px;
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+  color: var(--foreground);
+}
+
+.noDataRow {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.natureTag {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.subgroupLabel {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.promoterSection {
+  margin-bottom: 8px;
+}
+
+.promoterTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+.promoterGridHeader, .promoterRow, .promoterTotalRow {
+  display: grid;
+  grid-template-columns: 100px minmax(200px, 1.5fr) 100px 80px 120px 120px;
+  align-items: center;
+}
+
+.promoterGridHeader {
+  padding: 12px 20px;
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.promoterGridHeader span:nth-last-child(-n+2), .promoterRow span:nth-last-child(-n+2), .promoterTotalRow strong:last-child {
+  text-align: right;
+}
+
+.promoterRow {
+  padding: 11px 20px;
+  border-top: 1px solid var(--rule);
+  font-size: 12px;
+  color: var(--foreground);
+}
+
+.promoterTotalRow {
+  padding: 13px 20px;
+  border-top: 1.5px solid var(--foreground);
+  background: var(--paper);
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 700px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .header .flex {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .periodForm {
+    width: 100%;
+  }
+  .periodForm label {
+    flex: 1;
+    min-width: 110px;
+  }
+  .periodForm input {
+    width: 100%;
+  }
+  .periodForm button {
+    width: 100%;
+  }
+}
+
+.singleSummaryWrap {
+  animation: fadeIn 0.4s ease;
+}
+
+.summaryGridHeader {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.5fr) 180px 180px 180px;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.summaryGridHeader span:nth-child(n+2) {
+  text-align: right;
+}
+
+.rowUnified {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.5fr) 180px 180px 180px;
+  align-items: center;
+  padding: 11px 20px;
+  border-top: 1px solid var(--rule);
+  color: var(--foreground);
+  font-size: 13px;
+  transition: background 0.15s ease;
+}
+
+.rowUnifiedPrimary {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.5fr) 180px 180px 180px;
+  align-items: center;
+  padding: 12px 20px;
+  border-top: 1px solid var(--rule);
+  background: color-mix(in oklch, var(--accent-soft) 40%, white);
+  font-size: 13px;
+}
+
+.rowUnifiedSubgroup {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.5fr) 180px 180px 180px;
+  align-items: center;
+  padding: 10px 20px 10px 36px;
+  border-top: 1px dashed var(--rule);
+  color: var(--muted);
+  font-size: 12px;
+  background: var(--paper);
+}
+
+.rowUnifiedTotal {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.5fr) 180px 180px 180px;
+  align-items: center;
+  padding: 12px 20px;
+  border-top: 1px solid var(--foreground);
+  background: color-mix(in oklch, var(--accent-soft) 20%, white);
+  font-size: 13px;
+}
+
+.totalRowUnified {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.5fr) 180px 180px 180px;
+  align-items: center;
+  padding: 14px 20px;
+  border-top: 2px solid var(--foreground);
+  background: var(--accent-soft);
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.detailGridHeader6, .detailRow6, .totalRow6 {
+  display: grid;
+  grid-template-columns: 100px minmax(200px, 1.5fr) 180px 120px 120px 120px;
+  align-items: center;
+}
+
+.detailGridHeader6 {
+  padding: 12px 20px;
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.detailGridHeader6 span:nth-child(n+4), .detailRow6 span:nth-child(n+4), .totalRow6 strong:nth-child(n+4) {
+  text-align: right;
+}
+
+.detailRow6 {
+  padding: 12px 20px;
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+  color: var(--foreground);
+}
+
+.totalRow6 {
+  padding: 14px 20px;
+  border-top: 2px solid var(--foreground);
+  background: var(--accent-soft);
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.activeLedgerRow {
+  background: var(--accent-soft) !important;
+  border-left: 4px solid var(--accent) !important;
+  padding-left: 16px !important;
+}
+
+.activeLedgerRow span {
+  color: var(--accent) !important;
+}
+
+.clickableLedgerRow {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clickableLedgerRow:hover {
+  background: var(--accent-soft) !important;
+}
+
+
+

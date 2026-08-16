@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { X, Database, BarChart3, Image as ImageIcon, Calculator, User, Settings, CreditCard, LogOut } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -13,7 +14,7 @@ interface SidebarProps {
   onClose: () => void
 }
 
-const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
+const SidebarInner = ({ isOpen, onClose }: SidebarProps) => {
   const sections = [
     {
       title: 'Core Analytics',
@@ -127,6 +128,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         </>
       )}
     </AnimatePresence>
+  )
+}
+
+const Sidebar = (props: SidebarProps) => {
+  return (
+    <Suspense fallback={null}>
+      <SidebarInner {...props} />
+    </Suspense>
   )
 }
 
