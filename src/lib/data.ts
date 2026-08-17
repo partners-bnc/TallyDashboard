@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import type { Company, DashboardData, HistoryCoverage, Ledger, LedgerMonthlyData, Organization, TrialBalanceData, TrialBalanceLedgerRow, VoucherLine, FundsFlowData, FundsFlowGroup, FundsFlowSubgroup, FundsFlowEntry, FundsFlowSummary } from '@/lib/types'
+import type { Company, DashboardData, HistoryCoverage, Ledger, LedgerMonthlyData, Organization, TrialBalanceData, TrialBalanceLedgerRow, VoucherLine, FundsFlowData, FundsFlowGroup, FundsFlowSubgroup, FundsFlowEntry, FundsFlowSummary, TdsReportData } from '@/lib/types'
+import { buildTdsReport, type TdsDueOverride, type TdsDueRule, type TdsLedgerBalance, type TdsSourceLine } from '@/lib/tds'
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0)
 
@@ -552,4 +553,46 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
     sync,
     history
   }
+}
+
+export async function getTdsReportData(companyId: string, from: string, to: string, asOfDate: string): Promise<TdsReportData> {
+  const supabase = await createSupabaseServerClient()
+  const [mappingsResult, ledgersResult, sourceResult, dueRulesResult, dueOverridesResult] = await Promise.all([
+    supabase.from('tds_ledger_mappings').select('id,ledger_id').eq('company_id', companyId).eq('is_payable_ledger', true),
+    supabase.from('tb_ledgers').select('id,name,opening_balance,closing_balance').eq('company_id', companyId).eq('is_deleted', false),
+    supabase.rpc('tb_tds_source_lines', { target_company: companyId, target_as_of: asOfDate }),
+    supabase.from('tds_due_date_rules').select('rule_code,deduction_month,due_month_offset,due_day,effective_from,effective_to'),
+    supabase.from('tds_due_date_overrides').select('ledger_id,deduction_month,due_date').eq('company_id', companyId),
+  ])
+  if (mappingsResult.error || ledgersResult.error || sourceResult.error || dueRulesResult.error || dueOverridesResult.error) {
+    throw new Error(`Could not load TDS report: ${mappingsResult.error?.message ?? ledgersResult.error?.message ?? sourceResult.error?.message ?? dueRulesResult.error?.message ?? dueOverridesResult.error?.message}`)
+  }
+  const mappedLedgerIds = new Set((mappingsResult.data ?? []).map((mapping) => mapping.ledger_id))
+  const ledgerBalances: TdsLedgerBalance[] = (ledgersResult.data ?? [])
+    .filter((ledger) => mappedLedgerIds.has(ledger.id))
+    .map((ledger) => ({ ledgerId: ledger.id, openingBalance: asNumber(ledger.opening_balance), closingBalance: asNumber(ledger.closing_balance) }))
+  const lines: TdsSourceLine[] = (sourceResult.data ?? []).map((line) => ({
+    mappingId: line.mapping_id,
+    ledgerId: line.ledger_id,
+    ledgerName: line.ledger_name,
+    tdsType: line.tds_type,
+    sectionCode: line.section_code,
+    roundingTolerance: asNumber(line.rounding_tolerance),
+    journalTreatment: line.journal_treatment,
+    liabilityVoucherTypes: line.liability_voucher_types,
+    depositVoucherTypes: line.deposit_voucher_types,
+    voucherLedgerEntryId: line.voucher_ledger_entry_id,
+    voucherDate: line.voucher_date,
+    voucherType: line.voucher_type,
+    voucherNumber: line.voucher_number,
+    party: line.party_ledger_name,
+    narration: line.narration,
+    rawSignedAmount: asNumber(line.raw_signed_amount),
+    overrideClassification: line.override_classification,
+    relatedVoucherLedgerEntryId: line.related_voucher_ledger_entry_id,
+    overrideNote: line.override_note,
+  }))
+  const dueRules: TdsDueRule[] = (dueRulesResult.data ?? []).map((rule) => ({ ruleCode: rule.rule_code, deductionMonth: rule.deduction_month, dueMonthOffset: rule.due_month_offset, dueDay: rule.due_day, effectiveFrom: rule.effective_from, effectiveTo: rule.effective_to }))
+  const dueOverrides: TdsDueOverride[] = (dueOverridesResult.data ?? []).map((override) => ({ ledgerId: override.ledger_id, deductionMonth: override.deduction_month, dueDate: override.due_date }))
+  return buildTdsReport({ companyId, asOfDate, from, to, lines, ledgerBalances, dueRules, dueOverrides })
 }

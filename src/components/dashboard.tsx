@@ -210,6 +210,20 @@ export function Dashboard({
                             const params = new URLSearchParams({ org: selectedOrganizationId ?? '', company: selectedCompanyId })
                             if (from) params.set('from', from)
                             if (to) params.set('to', to)
+                            window.location.assign(`/dashboard/tds-report?${params.toString()}`)
+                          }}
+                        >
+                          TDS Report
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.trialBalanceButton}
+                          disabled={isTransitioning}
+                          onClick={() => {
+                            setIsTransitioning(true)
+                            const params = new URLSearchParams({ org: selectedOrganizationId ?? '', company: selectedCompanyId })
+                            if (from) params.set('from', from)
+                            if (to) params.set('to', to)
                             window.location.assign(`/dashboard/funds-flow?${params.toString()}`)
                           }}
                         >
