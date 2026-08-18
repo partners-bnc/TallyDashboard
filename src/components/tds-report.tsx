@@ -176,7 +176,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
           <VStack gap={1}><Text type="supporting">Position at {date(asOf)}</Text><Heading level={2}>Liability Flow</Heading></VStack>
           <Grid columns={{ minWidth: 220, max: 4, repeat: 'fit' }} gap={3}>
             {/* Liability Created */}
-            <Card padding={4} style={{ borderLeft: '4px solid var(--accent)', background: 'oklch(97% 0.01 245)', boxShadow: 'var(--shadow-soft)' }}>
+            <Card padding={4} style={{ background: 'oklch(97% 0.01 245)', border: '1px solid var(--rule)', boxShadow: 'var(--shadow-soft)' }}>
               <VStack gap={2}>
                 <HStack justify="between" align="center">
                   <Text type="supporting" weight="semibold">LIABILITY CREATED</Text>
@@ -187,7 +187,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
               </VStack>
             </Card>
             {/* Deposited */}
-            <Card padding={4} style={{ borderLeft: '4px solid var(--positive)', background: 'oklch(98% 0.02 145)', boxShadow: 'var(--shadow-soft)' }}>
+            <Card padding={4} style={{ background: 'oklch(98% 0.02 145)', border: '1px solid var(--rule)', boxShadow: 'var(--shadow-soft)' }}>
               <VStack gap={2}>
                 <HStack justify="between" align="center">
                   <Text type="supporting" weight="semibold">DEPOSITED</Text>
@@ -198,7 +198,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
               </VStack>
             </Card>
             {/* Outstanding */}
-            <Card padding={4} style={{ borderLeft: `4px solid ${data.kpis.remaining > 0 ? 'var(--warning)' : 'var(--rule)'}`, background: 'oklch(98% 0.02 75)', boxShadow: 'var(--shadow-soft)' }}>
+            <Card padding={4} style={{ background: 'oklch(98% 0.02 75)', border: '1px solid var(--rule)', boxShadow: 'var(--shadow-soft)' }}>
               <VStack gap={2}>
                 <HStack justify="between" align="center">
                   <Text type="supporting" weight="semibold">OUTSTANDING</Text>
@@ -209,7 +209,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
               </VStack>
             </Card>
             {/* Overdue Exposure */}
-            <Card padding={4} style={{ borderLeft: `4px solid ${data.kpis.overdue > 0 ? 'var(--negative)' : 'var(--rule)'}`, background: 'oklch(98% 0.02 25)', boxShadow: 'var(--shadow-soft)' }}>
+            <Card padding={4} style={{ background: 'oklch(98% 0.02 25)', border: '1px solid var(--rule)', boxShadow: 'var(--shadow-soft)' }}>
               <VStack gap={2}>
                 <HStack justify="between" align="center">
                   <Text type="supporting" weight="semibold">OVERDUE EXPOSURE</Text>
@@ -394,7 +394,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
         </VStack>
 
         {/* Audit Trail Dialog */}
-        <Dialog isOpen={!!selected} onOpenChange={(isOpen) => { if (!isOpen) setSelectedId(null) }} width="min(42rem, 92vw)" maxHeight="100dvh" position={{ right: 0, top: 0, bottom: 0 }} purpose="info" padding={0} style={{ height: '100dvh', margin: 0, borderRadius: 'var(--radius-none)', overflow: 'hidden' }}>
+        <Dialog isOpen={!!selected} onOpenChange={(isOpen) => { if (!isOpen) setSelectedId(null) }} width="min(60rem, 95vw)" maxHeight="100dvh" position={{ right: 0, top: 0, bottom: 0 }} purpose="info" padding={0} style={{ height: '100dvh', margin: 0, borderRadius: 'var(--radius-none)', overflow: 'hidden' }}>
           {selected ? <Layout
             height="fill"
             header={<div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-6 py-4 bg-slate-50 dark:bg-slate-800">
