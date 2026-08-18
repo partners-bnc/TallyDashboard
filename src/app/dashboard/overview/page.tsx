@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
-import { getDashboardData, listCompanies, listOrganizations } from '@/lib/data'
+import { getDashboardData, getTdsReportData, listCompanies, listOrganizations } from '@/lib/data'
 import { Dashboard } from '@/components/dashboard'
 import { normalizePeriodQuery } from '@/lib/period'
+import { currentFinancialYear, TDS_BOOKS_AS_OF_DATE } from '@/lib/tds'
 
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ org?: string; company?: string; from?: string; to?: string }> }) {
   const params = await searchParams
@@ -18,7 +19,15 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     redirect(`/dashboard?${search.toString()}`)
   }
 
-  const data = period.isValid ? await getDashboardData(companyId, period.from || undefined, period.to || undefined) : null
+  const financialYear = currentFinancialYear()
+  const tdsFrom = period.from || financialYear.from
+  const tdsTo = period.to || financialYear.to
+  const [data, tdsData] = period.isValid
+    ? await Promise.all([
+        getDashboardData(companyId, period.from || undefined, period.to || undefined),
+        getTdsReportData(companyId, tdsFrom, tdsTo, TDS_BOOKS_AS_OF_DATE).catch(() => null),
+      ])
+    : [null, null]
 
   return (
     <Dashboard 
@@ -27,6 +36,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       selectedOrganizationId={organizationId} 
       selectedCompanyId={companyId} 
       data={data} 
+      tdsData={tdsData}
       from={period.from}
       to={period.to}
     />

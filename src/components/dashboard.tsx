@@ -1,16 +1,19 @@
 'use client'
 
 import { useMemo, useState, useTransition, type FormEvent } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@astryxdesign/core/Button'
-import { ArrowUpRight, ArrowsClockwise, CaretDown, ChartLineUp, MagnifyingGlass, Receipt, TrendUp, TrendDown, Scales, X, Buildings, ArrowsLeftRight, ChartBar, Clock, Notebook } from '@phosphor-icons/react'
+import { ArrowUpRight, ArrowsClockwise, CaretDown, ChartLineUp, MagnifyingGlass, Receipt, TrendUp, TrendDown, Scales, X, Buildings, ArrowsLeftRight, ChartBar, Clock, Notebook, ShieldCheck } from '@phosphor-icons/react'
+import type { Icon } from '@phosphor-icons/react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { Company, DashboardData, Organization } from '@/lib/types'
+import type { Company, DashboardData, Organization, TdsReportData } from '@/lib/types'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
 import styles from './dashboard.module.css'
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
+const tdsMoney = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const compact = new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 1 })
 
 function withContext(org: string | null, company: string | null, from = '', to = '') {
@@ -20,6 +23,16 @@ function withContext(org: string | null, company: string | null, from = '', to =
   if (from) params.set('from', from)
   if (to) params.set('to', to)
   return `/dashboard/overview?${params.toString()}`
+}
+
+function tdsReportHref(org: string | null, company: string | null, ledger: string, from: string, to: string) {
+  const params = new URLSearchParams()
+  if (org) params.set('org', org)
+  if (company) params.set('company', company)
+  params.set('ledger', ledger)
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+  return `/dashboard/tds-report?${params.toString()}`
 }
 
 function Metric({
@@ -33,7 +46,7 @@ function Metric({
   value: string
   note?: string
   tone?: string
-  icon?: React.ComponentType<any>
+  icon?: Icon
 }) {
   return (
     <div className={styles.metric}>
@@ -63,6 +76,7 @@ export function Dashboard({
   selectedOrganizationId,
   selectedCompanyId,
   data,
+  tdsData,
   from,
   to
 }: {
@@ -71,6 +85,7 @@ export function Dashboard({
   selectedOrganizationId: string | null
   selectedCompanyId: string | null
   data: DashboardData | null
+  tdsData: TdsReportData | null
   from: string
   to: string
 }) {
@@ -82,6 +97,7 @@ export function Dashboard({
   const [isTransitioning, setIsTransitioning] = useState(false)
   const selectedOrg = organizations.find((org) => org.id === selectedOrganizationId)
   const selectedCompany = companies.find((company) => company.id === selectedCompanyId)
+  const totalTdsOutstanding = tdsData?.ledgerPositions.reduce((sum, position) => sum + position.outstanding, 0) ?? 0
   
   const filteredLedgers = useMemo(() => {
     return data?.ledgers.filter((ledger) => {
@@ -337,43 +353,44 @@ export function Dashboard({
                 <article className={`${styles.panel} ${styles.recent}`}>
                   <div className={styles.panelHeader}>
                     <div>
-                      <span className={styles.eyebrow}>Latest entries</span>
+                      <span className={styles.eyebrow}>Books at 31 Mar 2027</span>
                       <div className="flex items-center gap-2 mt-1">
-                        <Clock size={20} className="text-slate-900 flex-shrink-0" />
-                        <h2>Recent vouchers</h2>
+                        <ShieldCheck size={20} className="text-slate-900 flex-shrink-0" />
+                        <h2>TDS compliances</h2>
                       </div>
                     </div>
                   </div>
-                  {data?.recentVouchers.length ? (
-                    <div className={styles.voucherTable}>
-                      <div className={styles.voucherTableHead}>
-                        <span>Date</span>
-                        <span>Voucher</span>
-                        <span>Party</span>
-                        <span>Amount</span>
+                  {tdsData ? (
+                    <div className={styles.tdsTable}>
+                      <div className={styles.tdsTableHead}>
+                        <span>Ledgers</span>
+                        <span>Outstanding</span>
+                        <span>Percentage of outstanding</span>
+                        <span>View</span>
                       </div>
-                      <div className={styles.voucherList}>
-                        {data.recentVouchers.map((voucher) => (
-                          <div className={styles.voucher} key={voucher.id}>
-                            <div className={styles.voucherDate}>
-                              {new Date(voucher.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                            </div>
-                            <div className={styles.voucherType}>
-                              <strong>{voucher.type} {voucher.number ? `· ${voucher.number}` : ''}</strong>
-                            </div>
-                            <div className={styles.voucherParty}>
-                              <span>{voucher.party || voucher.type}</span>
-                            </div>
-                            <div className={styles.voucherAmountCol}>
-                              <strong className={styles.voucherAmount}>{money.format(voucher.amount)}</strong>
-                              <ArrowUpRight size={17} className={styles.mutedIcon} />
-                            </div>
+                      <div className={styles.tdsList}>
+                        {tdsData.ledgerPositions.length ? tdsData.ledgerPositions.map((position) => (
+                          <div className={styles.tdsRow} key={position.ledgerId}>
+                            <strong className={styles.tdsLedger}>{position.ledgerName}</strong>
+                            <strong className={styles.tdsOutstanding}>{tdsMoney.format(position.outstanding)}</strong>
+                            <span className={styles.tdsPercentage}>{totalTdsOutstanding > 0 ? `${((position.outstanding / totalTdsOutstanding) * 100).toFixed(1)}%` : '0.0%'}</span>
+                            <Link
+                              href={tdsReportHref(selectedOrganizationId, selectedCompanyId, position.ledgerId, from, to)}
+                              className={styles.tdsView}
+                              aria-label={`View ${position.ledgerName} in the TDS report`}
+                            >
+                              <ArrowUpRight size={17} aria-hidden="true" />
+                            </Link>
                           </div>
-                        ))}
+                        )) : <span className={styles.tdsEmpty}>No mapped TDS ledgers</span>}
+                      </div>
+                      <div className={styles.tdsTotal}>
+                        <span>Total outstanding due</span>
+                        <strong>{tdsMoney.format(totalTdsOutstanding)}</strong>
                       </div>
                     </div>
                   ) : (
-                    <EmptyPanel title="No recent vouchers" detail="There are no included vouchers for this selection." />
+                    <EmptyPanel title="No TDS positions" detail="No mapped TDS ledger positions are available through 31 March 2027." />
                   )}
                 </article>
 

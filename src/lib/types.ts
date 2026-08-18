@@ -194,6 +194,7 @@ export interface FundsFlowData {
 export type TdsStatus =
   | 'CLEARED_ON_TIME'
   | 'CLEARED_LATE'
+  | 'REVERSED'
   | 'PARTIALLY_CLEARED_OVERDUE'
   | 'PARTIALLY_CLEARED_NOT_DUE'
   | 'UNPAID_OVERDUE'
@@ -219,9 +220,10 @@ export type TdsAuditTransaction = {
 export type TdsAllocation = {
   id: string
   liabilityId: string
-  depositId: string
-  depositVoucherNumber: string | null
-  depositDate: string
+  sourceType: 'DEPOSIT' | 'REVERSAL'
+  sourceId: string
+  sourceVoucherNumber: string | null
+  sourceDate: string
   allocatedAmount: number
   onTimeAmount: number
   lateAmount: number
@@ -263,6 +265,7 @@ export type TdsReportData = {
   rows: TdsMonthlyRow[]
   kpis: { liabilityCreated: number; deposited: number; knockedOff: number; remaining: number; overdue: number; clearedLate: number; excess: number }
   ledgerOptions: { id: string; label: string }[]
+  ledgerPositions: { ledgerId: string; ledgerName: string; outstanding: number; excess: number }[]
   reconciliation: { ledgerId: string; ledgerName: string; expected: number; reconstructed: number; difference: number; withinTolerance: boolean }[]
 }
 

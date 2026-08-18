@@ -2,10 +2,10 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { AppShell, Card, CheckboxInput, Dialog, DialogHeader, Grid, Heading, HStack, Layout, LayoutContent, Section, Selector, StatusDot, Text, Token, VStack } from '@astryxdesign/core'
+import { AppShell, Card, Dialog, Grid, Heading, HStack, Layout, LayoutContent, Text, VStack } from '@astryxdesign/core'
 import { ArrowLeft, CalendarDays, Download, Eye, CheckCircle2, AlertTriangle, Clock, TrendingUp, ShieldCheck, AlertCircle, X } from 'lucide-react'
 import Header from '@/components/ui/Header'
-import type { TdsAuditTransaction, TdsMonthlyRow, TdsReportData, TdsStatus } from '@/lib/types'
+import type { TdsReportData, TdsStatus } from '@/lib/types'
 import XLSX from 'xlsx-js-style'
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 })
@@ -18,8 +18,7 @@ const query = (values: Record<string, string | undefined>) => {
 }
 const isoDate = (value: string) => value as `${number}${number}${number}${number}-${number}${number}-${number}${number}`
 
-const statusVariant = (status: TdsStatus) => status === 'CLEARED_ON_TIME' ? 'success' : status === 'CLEARED_LATE' || status === 'PENDING_NOT_DUE' || status === 'PARTIALLY_CLEARED_NOT_DUE' ? 'warning' : status === 'REVIEW_REQUIRED' || status === 'EXCESS_UNALLOCATED' ? 'accent' : 'error'
-const statusColor = (status: TdsStatus) => status === 'CLEARED_ON_TIME' ? 'green' : status === 'CLEARED_LATE' || status === 'PENDING_NOT_DUE' || status === 'PARTIALLY_CLEARED_NOT_DUE' ? 'orange' : status === 'REVIEW_REQUIRED' || status === 'EXCESS_UNALLOCATED' ? 'blue' : 'red'
+const statusColor = (status: TdsStatus) => status === 'CLEARED_ON_TIME' || status === 'REVERSED' ? 'green' : status === 'CLEARED_LATE' || status === 'PENDING_NOT_DUE' || status === 'PARTIALLY_CLEARED_NOT_DUE' ? 'orange' : status === 'REVIEW_REQUIRED' || status === 'EXCESS_UNALLOCATED' ? 'blue' : 'red'
 const statusLabel = (status: TdsStatus) => status.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (character) => character.toUpperCase())
 
 const statusBadgeClass = (status: TdsStatus) => {
@@ -49,32 +48,32 @@ function exportWorkbook(data: TdsReportData, companyName: string) {
   ]
   const detail = data.rows.map((row) => ({ Ledger: row.ledgerName, 'TDS Type': row.tdsType, Section: row.sectionCode ?? '', 'Deduction Month': row.deductionMonth ?? 'Brought forward', 'Opening Outstanding': row.openingOutstanding, Deducted: row.deducted, Reversed: row.reversed, 'Total Due': row.totalDue, 'Due Date': row.dueDate ?? '', Deposited: row.deposited, Remaining: row.remaining, Excess: row.excess, Status: statusLabel(row.status), 'Books Status': row.booksStatus, 'Deposit Dates': row.depositDates.join(', ') }))
   const transactions = data.rows.flatMap((row) => [...row.liabilityTransactions, ...row.depositTransactions].map((item) => ({ Ledger: row.ledgerName, 'Deduction Month': row.deductionMonth ?? 'Brought forward', Date: item.date, 'Voucher Type': item.voucherType, 'Voucher Number': item.voucherNumber ?? '', Party: item.party ?? '', Classification: item.classification, Amount: item.amount, 'Signed Amount': item.rawSignedAmount, Note: item.note ?? '' })))
-  const allocations = data.rows.flatMap((row) => row.allocations.map((item) => ({ Ledger: row.ledgerName, 'Deduction Month': row.deductionMonth ?? 'Brought forward', 'Deposit Date': item.depositDate, 'Deposit Voucher': item.depositVoucherNumber ?? '', Allocated: item.allocatedAmount, 'On Time': item.onTimeAmount, Late: item.lateAmount, 'Due Date': item.dueDate ?? '', 'Delay Days': item.delayDays ?? '' })))
-  const reconciliation = data.reconciliation.map((item) => ({ Ledger: item.ledgerName, 'Ledger Closing Balance': item.expected, Reconstructed: item.reconstructed, Difference: item.difference, Reconciled: item.withinTolerance ? 'Yes' : 'No' }))
-  for (const [name, rows] of [['Summary', summary], ['Monthly Detail', detail], ['Transactions', transactions], ['Allocations', allocations], ['Reconciliation', reconciliation]] as const) {
+  const allocations = data.rows.flatMap((row) => row.allocations.map((item) => ({ Ledger: row.ledgerName, 'Deduction Month': row.deductionMonth ?? 'Brought forward', 'Source Type': item.sourceType, 'Source Date': item.sourceDate, 'Source Voucher': item.sourceVoucherNumber ?? '', Allocated: item.allocatedAmount, 'On Time': item.onTimeAmount, Late: item.lateAmount, 'Due Date': item.dueDate ?? '', 'Delay Days': item.delayDays ?? '' })))
+  const ledgerPositions = data.ledgerPositions.map((item) => ({ Ledger: item.ledgerName, Outstanding: item.outstanding, Excess: item.excess }))
+  const reconciliation = data.reconciliation.map((item) => ({ Ledger: item.ledgerName, 'Computed Outstanding': data.ledgerPositions.find((ledger) => ledger.ledgerId === item.ledgerId)?.outstanding ?? 0, 'Ledger Closing Balance': item.expected, 'Reconstructed Net Position': item.reconstructed, Difference: item.difference, Reconciled: item.withinTolerance ? 'Yes' : 'No' }))
+  for (const [name, rows] of [['Summary', summary], ['Ledger Positions', ledgerPositions], ['Monthly Detail', detail], ['Transactions', transactions], ['Allocations', allocations], ['Reconciliation', reconciliation]] as const) {
     const sheet = name === 'Summary' ? XLSX.utils.aoa_to_sheet(rows) : XLSX.utils.json_to_sheet(rows as object[])
     XLSX.utils.book_append_sheet(workbook, sheet, name)
   }
   XLSX.writeFile(workbook, `tds-liability-clearance-${companyName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${data.asOfDate}.xlsx`)
 }
 
-export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf }: { orgId: string; companyId: string; companyName: string; data: TdsReportData | null; from: string; to: string; asOf: string }) {
+export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf, initialLedger = 'all' }: { orgId: string; companyId: string; companyName: string; data: TdsReportData | null; from: string; to: string; asOf: string; initialLedger?: string }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [draftFrom, setDraftFrom] = useState(from)
   const [draftTo, setDraftTo] = useState(to)
-  const [draftAsOf, setDraftAsOf] = useState(asOf)
-  const [ledger, setLedger] = useState('all')
+  const [ledger, setLedger] = useState(initialLedger)
   const [status, setStatus] = useState('all')
   const [showCleared, setShowCleared] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   
   const visibleRows = useMemo(() => (data?.rows ?? []).filter((row) => (ledger === 'all' || row.ledgerId === ledger) && (status === 'all' || row.status === status) && (showCleared || !['CLEARED_ON_TIME', 'CLEARED_LATE'].includes(row.status)) && (!row.deductionMonth || (row.deductionMonth >= `${from.slice(0, 7)}-01` && row.deductionMonth <= `${to.slice(0, 7)}-01`))), [data, from, ledger, showCleared, status, to])
   const selected = visibleRows.find((row) => row.id === selectedId) ?? null
-  const applyDates = () => startTransition(() => router.push(`/dashboard/tds-report?${query({ org: orgId, company: companyId, from: draftFrom, to: draftTo, asOf: draftAsOf })}`))
+  const applyDates = () => startTransition(() => router.push(`/dashboard/tds-report?${query({ org: orgId, company: companyId, from: draftFrom, to: draftTo, ledger: ledger === 'all' ? undefined : ledger })}`))
   
   const ledgerOptions = [{ label: 'All TDS ledgers', value: 'all' }, ...(data?.ledgerOptions ?? []).map((item) => ({ label: item.label, value: item.id }))]
-  const statusOptions = [{ label: 'All statuses', value: 'all' }, ...(['CLEARED_ON_TIME', 'CLEARED_LATE', 'PARTIALLY_CLEARED_OVERDUE', 'PARTIALLY_CLEARED_NOT_DUE', 'UNPAID_OVERDUE', 'PENDING_NOT_DUE', 'EXCESS_UNALLOCATED', 'REVIEW_REQUIRED'] as TdsStatus[]).map((item) => ({ label: statusLabel(item), value: item }))]
+  const statusOptions = [{ label: 'All statuses', value: 'all' }, ...(['CLEARED_ON_TIME', 'CLEARED_LATE', 'REVERSED', 'PARTIALLY_CLEARED_OVERDUE', 'PARTIALLY_CLEARED_NOT_DUE', 'UNPAID_OVERDUE', 'PENDING_NOT_DUE', 'EXCESS_UNALLOCATED', 'REVIEW_REQUIRED'] as TdsStatus[]).map((item) => ({ label: statusLabel(item), value: item }))]
   const statusCounts = useMemo(() => visibleRows.reduce<Record<string, number>>((counts, row) => ({ ...counts, [row.status]: (counts[row.status] ?? 0) + 1 }), {}), [visibleRows])
   const depositCoverage = data?.kpis.liabilityCreated ? Math.min(100, (data.kpis.deposited / data.kpis.liabilityCreated) * 100) : 0
   const reconciliationIssues = data?.reconciliation.filter((item) => !item.withinTolerance).length ?? 0
@@ -109,7 +108,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
         </div>
       </Card>
 
-      {/* Reporting Period Card */}
+      {/* Deduction Period Card */}
       <Card padding={5} style={{ background: 'var(--paper)', border: '1px solid var(--rule)', boxShadow: 'var(--shadow-soft)' }}>
         <VStack gap={4}>
           <HStack gap={3} align="center">
@@ -117,38 +116,30 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
               <CalendarDays size={20} />
             </div>
             <VStack gap={0.5}>
-              <Heading level={3}>Reporting Period</Heading>
-              <Text type="supporting">Set the deduction window and the books cut-off used for deposit matching.</Text>
+              <Heading level={3}>Deduction Period</Heading>
+              <Text type="supporting">Filter deduction months. Books and deposit matching remain fixed through {date(asOf)}.</Text>
             </VStack>
           </HStack>
           <div className="flex flex-wrap items-end gap-4">
             {/* From Date */}
             <div className="flex flex-col gap-1.5 w-full sm:w-[180px]">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">From</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deduction From</span>
               <input 
                 type="date" 
                 value={isoDate(draftFrom)} 
+                max={isoDate(asOf)}
                 onChange={(e) => setDraftFrom(e.target.value)} 
                 className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
               />
             </div>
             {/* To Date */}
             <div className="flex flex-col gap-1.5 w-full sm:w-[180px]">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">To</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deduction To</span>
               <input 
                 type="date" 
                 value={isoDate(draftTo)} 
+                max={isoDate(asOf)}
                 onChange={(e) => setDraftTo(e.target.value)} 
-                className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
-              />
-            </div>
-            {/* Books As Of */}
-            <div className="flex flex-col gap-1.5 w-full sm:w-[180px]">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Books As Of</span>
-              <input 
-                type="date" 
-                value={isoDate(draftAsOf)} 
-                onChange={(e) => setDraftAsOf(e.target.value)} 
                 className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
               />
             </div>
@@ -171,6 +162,12 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
       </Card>
 
       {!data ? <Card variant="red" padding={4}><Text>Could not load the TDS report. Confirm the selected company has a completed sync and try again.</Text></Card> : <>
+        {reconciliationIssues > 0 && <Card variant="red" padding={4}>
+          <VStack gap={1}>
+            <Heading level={3}>{reconciliationIssues} ledger {reconciliationIssues === 1 ? 'mismatch' : 'mismatches'} require review</Heading>
+            <Text>The outstanding figures below remain the reconstructed amounts. Tally closing balances are shown only as reconciliation evidence and do not replace the calculation.</Text>
+          </VStack>
+        </Card>}
         {/* KPIs and Summary Cards */}
         <VStack gap={4}>
           <VStack gap={1}><Text type="supporting">Position at {date(asOf)}</Text><Heading level={2}>Liability Flow</Heading></VStack>
@@ -339,6 +336,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
                     <th scope="col" className="px-6 py-4">Ledger / Section</th>
                     <th scope="col" className="px-6 py-4">Deduction Month</th>
                     <th scope="col" className="px-6 py-4 text-right">Liability</th>
+                    <th scope="col" className="px-6 py-4 text-right">Reversed</th>
                     <th scope="col" className="px-6 py-4 text-right">Deposited</th>
                     <th scope="col" className="px-6 py-4 text-right pr-8">Outstanding</th>
                     <th scope="col" className="px-6 py-4 pl-8">Due Date</th>
@@ -360,6 +358,9 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right font-medium text-slate-700 dark:text-slate-300">
                         {amount(row.totalDue)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-medium text-slate-700 dark:text-slate-300">
+                        {amount(row.reversed)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right font-medium text-slate-700 dark:text-slate-300">
                         {amount(row.deposited)}
@@ -415,6 +416,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
                   </span>
                   <Text type="supporting">Due {date(selected.dueDate)} · Deposits {selected.depositDates.map(date).join(', ') || '—'}</Text>
                 </HStack>
+                <Text type="supporting">Payment allocations and liability reversals are listed by their own source classification. Reversals never contribute to Deposited.</Text>
 
                 <div className="w-full overflow-hidden border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-sm">
                   <div className="overflow-x-auto">
@@ -472,8 +474,9 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
                     <thead className="bg-slate-50 dark:bg-slate-800 text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                       <tr>
                         <th scope="col" className="px-6 py-4">Ledger</th>
+                        <th scope="col" className="px-6 py-4 text-right">Computed Outstanding</th>
                         <th scope="col" className="px-6 py-4 text-right">Ledger Closing</th>
-                        <th scope="col" className="px-6 py-4 text-right">Reconstructed</th>
+                        <th scope="col" className="px-6 py-4 text-right">Reconstructed Net</th>
                         <th scope="col" className="px-6 py-4 text-right">Difference</th>
                         <th scope="col" className="px-6 py-4 text-center">Result</th>
                       </tr>
@@ -483,6 +486,9 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf 
                         <tr key={row.ledgerId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                           <td className="px-6 py-4 font-semibold text-slate-900 dark:text-slate-100">
                             {row.ledgerName}
+                          </td>
+                          <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-300">
+                            {amount(data.ledgerPositions.find((ledger) => ledger.ledgerId === row.ledgerId)?.outstanding ?? 0)}
                           </td>
                           <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-300">
                             {amount(Number(row.expected))}

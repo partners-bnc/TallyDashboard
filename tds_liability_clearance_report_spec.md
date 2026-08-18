@@ -151,7 +151,7 @@ Do not mark the amount delayed merely because it remains unpaid before the due d
 
 ## 7. Knockoff Rule
 
-Use **FIFO within the same company and TDS ledger**:
+Use **FIFO within the same company and TDS ledger**. Unused deposits and reversal credits remain in that ledger's chronological credit pool and are applied to later liabilities oldest-credit-first:
 
 > Every deposit knocks off the oldest outstanding TDS liability first.
 
@@ -191,17 +191,20 @@ Process each `(company_id, tds_ledger_id)` independently in chronological order.
 
 ```text
 liability_queue = []
-unallocated_deposits = []
+credit_pool = []
+deposit_allocations = []
 
 for each transaction ordered by voucher_date, voucher_id, line_number:
 
     if transaction creates liability:
         add a liability batch to liability_queue
+        consume available credit_pool entries oldest-first
 
     if transaction reverses liability:
         reverse the related batch when a link exists
         otherwise reduce the newest compatible open liability
-        mark uncertain reversals as REVIEW_REQUIRED
+        if the liability was paid, release that payment allocation to credit_pool
+        carry any unused reversal amount forward in credit_pool
 
     if transaction is a deposit:
         available = deposit_amount
@@ -212,9 +215,10 @@ for each transaction ordered by voucher_date, voucher_id, line_number:
 
             create knockoff allocation:
                 liability_id
-                deposit_voucher_id
+                source_type = DEPOSIT
+                source_voucher_id
                 allocated_amount
-                deposit_date
+                source_date
                 due_date
                 delay_days
 
@@ -222,8 +226,16 @@ for each transaction ordered by voucher_date, voucher_id, line_number:
             available -= allocated
 
         if available > rounding_tolerance:
-            record available as UNALLOCATED_EXCESS_PAYMENT
+            retain available in credit_pool with its original deposit date
+
+    if transaction reverses a payment:
+        target its linked payment when present
+        otherwise target the most recent payment allocations, newest-allocation-first
+        mark only unlinked restored allocations as REVIEW_REQUIRED
+        create a positive REVIEW_REQUIRED liability for any unexplained remainder
 ```
+
+Liability reversals are not deposits. Their allocations have `source_type = REVERSAL`, no payment delay, and contribute to `Reversed`, never `Deposited` or `Knocked off`. An ordinary unlinked liability reversal is deterministic and does not require review.
 
 If the difference is within the configured rounding tolerance, the liability may be treated as cleared, but the rounding adjustment must be displayed.
 
@@ -303,7 +315,6 @@ Required filters:
 - Financial/tax year
 - From month
 - To month
-- As-of date
 - TDS type/ledger
 - Status
 - Include/exclude zero-balance cleared rows
@@ -314,7 +325,8 @@ Default behavior:
 
 - Show all active companies available to the user
 - Show the current financial/tax year
-- Use today's date as the as-of date
+- Keep books and deposit matching fixed through 31 March 2027
+- Use From/To only to filter deduction months
 - Include overdue and outstanding rows
 
 ---
@@ -434,13 +446,17 @@ Handle these explicitly:
 - Cancelled voucher: exclude it
 - Deleted voucher: exclude it
 - Optional voucher: exclude it by default
-- Liability reversal: reduce the related liability
-- Payment reversal: restore the corresponding liability
+- Liability reversal: reduce the linked liability; without a link, reduce the newest compatible liability first
+- Liability reversal exceeding available liability: retain the remainder as same-ledger credit
+- Paid-liability reversal: return the released deposit allocation to same-ledger credit
+- Payment reversal: undo the linked payment's newest allocation first; if unlinked, undo the most recent payment allocations and flag only that uncertain attribution
 - Voucher altered after a previous sync: recompute affected allocations
 - Backdated voucher: recompute FIFO from the backdated transaction onward
 - Ledger reclassification: preserve history and rerun the affected company/ledger
 
 FIFO results must be deterministic and safely recomputable.
+
+Credits never cross companies or TDS ledgers. A deposit carried forward from before a later liability retains its original payment date for on-time/late classification. This is a books allocation only; challan status remains `NOT_AVAILABLE` until independently verified.
 
 ---
 
@@ -588,6 +604,8 @@ Opening outstanding
 = Closing outstanding
 ```
 
+For reporting, `remaining = max(opening + deductions - reversals - knocked-off deposits, 0)` per monthly row. Individual ledger outstanding is that ledger's positive net payable; negative balances are excess and never offset another ledger. Total outstanding must equal both the sum of monthly remaining amounts and the sum of individual ledger outstanding amounts. Reconciliation differences remain visible and must never replace the computed outstanding.
+
 Also validate:
 
 1. A deposit allocation never exceeds the deposit amount.
@@ -704,4 +722,3 @@ TDS liability created
 The primary management question is:
 
 > **Has every TDS liability been fully cleared by its due date? If not, how much remains, since when, and for which company and TDS ledger?**
-

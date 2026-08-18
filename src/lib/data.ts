@@ -573,6 +573,7 @@ export async function getTdsReportData(companyId: string, from: string, to: stri
     .filter((ledger) => mappedLedgerIds.has(ledger.id))
     .map((ledger) => ({ ledgerId: ledger.id, openingBalance: asNumber(ledger.opening_balance), closingBalance: asNumber(ledger.closing_balance) }))
   const lines: TdsSourceLine[] = (sourceResult.data ?? []).map((line) => ({
+    companyId: line.company_id,
     mappingId: line.mapping_id,
     ledgerId: line.ledger_id,
     ledgerName: line.ledger_name,
