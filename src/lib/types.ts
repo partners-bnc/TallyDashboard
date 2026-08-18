@@ -15,6 +15,10 @@ export interface Database {
       tb_company_sync_state: Table<{ company_id: string; last_catalog_seen_at: string | null; last_ledger_sync_at: string | null; last_voucher_sync_at: string | null; last_error: string | null; history_baseline_date: string | null; history_earliest_voucher_date: string | null; history_latest_voucher_date: string | null; history_reconciliation_status: string | null; history_reconciled_at: string | null; verification_as_of_date: string | null; verification_status: string | null; verification_completed_at: string | null; updated_at: string }>
       tb_tally_verification_snapshots: Table<{ id: string; org_id: string; company_id: string; ledger_id: string; as_of_date: string; closing_balance: number; synced_at: string }>
       tb_tally_trial_balance_snapshots: Table<{ id: string; org_id: string; company_id: string; as_of_date: string; debit_total: number; credit_total: number; rows: Json; synced_at: string }>
+      tds_ledger_mappings: Table<{ id: string; org_id: string; company_id: string; ledger_id: string; tds_type: string; section_code: string | null; is_payable_ledger: boolean; rounding_tolerance: number; active_from: string; active_to: string | null; due_rule_code: string; liability_voucher_types: string[]; deposit_voucher_types: string[]; journal_treatment: string; created_at: string; updated_at: string }>
+      tds_due_date_rules: Table<{ rule_code: string; deduction_month: number; due_month_offset: number; due_day: number; effective_from: string; effective_to: string | null; created_at: string }>
+      tds_due_date_overrides: Table<{ id: string; org_id: string; company_id: string; ledger_id: string | null; deduction_month: string; due_date: string; reason: string; created_at: string }>
+      tds_transaction_overrides: Table<{ voucher_ledger_entry_id: string; org_id: string; company_id: string; ledger_id: string; classification: string; related_voucher_ledger_entry_id: string | null; note: string; created_at: string; updated_at: string }>
     }
     Views: {
       tb_ledger_voucher_lines: View<{ company_id: string | null; ledger_id: string | null; ledger_name: string | null; voucher_ledger_entry_id: string | null; line_number: number | null; voucher_id: string | null; voucher_date: string | null; voucher_type: string | null; voucher_number: string | null; particulars: string | null; debit_amount: number | null; credit_amount: number | null; running_balance: number | null }>
@@ -45,6 +49,10 @@ export interface Database {
       tb_history_coverage: {
         Args: { target_company: string }
         Returns: { baseline_date: string | null; earliest_voucher_date: string | null; latest_voucher_date: string | null; reconciliation_status: string | null; reconciled_at: string | null }[]
+      }
+      tb_tds_source_lines: {
+        Args: { target_company: string; target_as_of: string }
+        Returns: { mapping_id: string; org_id: string; company_id: string; ledger_id: string; ledger_name: string; tds_type: string; section_code: string | null; rounding_tolerance: number; journal_treatment: string; liability_voucher_types: string[]; deposit_voucher_types: string[]; voucher_ledger_entry_id: string; voucher_id: string; voucher_date: string; voucher_type: string; voucher_number: string | null; party_ledger_name: string | null; narration: string | null; line_number: number; raw_signed_amount: number; override_classification: string | null; related_voucher_ledger_entry_id: string | null; override_note: string | null }[]
       }
     }
   }
@@ -181,6 +189,81 @@ export interface FundsFlowData {
     error: string | null
   }
   history: HistoryCoverage
+}
+
+export type TdsStatus =
+  | 'CLEARED_ON_TIME'
+  | 'CLEARED_LATE'
+  | 'PARTIALLY_CLEARED_OVERDUE'
+  | 'PARTIALLY_CLEARED_NOT_DUE'
+  | 'UNPAID_OVERDUE'
+  | 'PENDING_NOT_DUE'
+  | 'EXCESS_UNALLOCATED'
+  | 'REVIEW_REQUIRED'
+
+export type TdsBooksStatus = 'CLEARED' | 'PARTIALLY_CLEARED' | 'OUTSTANDING' | 'EXCESS_UNALLOCATED' | 'REVIEW_REQUIRED'
+export type TdsClassification = 'DEDUCTION' | 'REVERSAL' | 'ADJUSTMENT' | 'DEPOSIT' | 'PAYMENT_REVERSAL' | 'EXCLUDE'
+
+export type TdsAuditTransaction = {
+  id: string
+  date: string
+  voucherType: string
+  voucherNumber: string | null
+  party: string | null
+  rawSignedAmount: number
+  amount: number
+  classification: TdsClassification
+  note: string | null
+}
+
+export type TdsAllocation = {
+  id: string
+  liabilityId: string
+  depositId: string
+  depositVoucherNumber: string | null
+  depositDate: string
+  allocatedAmount: number
+  onTimeAmount: number
+  lateAmount: number
+  dueDate: string | null
+  delayDays: number | null
+}
+
+export type TdsMonthlyRow = {
+  id: string
+  ledgerId: string
+  ledgerName: string
+  tdsType: string
+  sectionCode: string | null
+  deductionMonth: string | null
+  openingOutstanding: number
+  deducted: number
+  reversed: number
+  totalDue: number
+  dueDate: string | null
+  depositDates: string[]
+  deposited: number
+  knockedOff: number
+  remaining: number
+  excess: number
+  delayDays: number | null
+  status: TdsStatus
+  booksStatus: TdsBooksStatus
+  challanStatus: 'NOT_AVAILABLE'
+  liabilityTransactions: TdsAuditTransaction[]
+  depositTransactions: TdsAuditTransaction[]
+  allocations: TdsAllocation[]
+}
+
+export type TdsReportData = {
+  asOfDate: string
+  from: string
+  to: string
+  generatedAt: string
+  rows: TdsMonthlyRow[]
+  kpis: { liabilityCreated: number; deposited: number; knockedOff: number; remaining: number; overdue: number; clearedLate: number; excess: number }
+  ledgerOptions: { id: string; label: string }[]
+  reconciliation: { ledgerId: string; ledgerName: string; expected: number; reconstructed: number; difference: number; withinTolerance: boolean }[]
 }
 
 
