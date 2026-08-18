@@ -552,3 +552,165 @@
 
 
 
+
+
+/* Ledger details Drawer */
+.drawerBackdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: flex;
+  justify-content: end;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  animation: fadeInBackdrop 0.4s ease;
+}
+
+@keyframes fadeInBackdrop {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.drawer {
+  width: min(540px, 100%);
+  height: 100%;
+  overflow: auto;
+  padding: 40px;
+  background: var(--paper);
+  box-shadow: -20px 0 60px -15px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: slideInDrawer 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideInDrawer {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.drawerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.drawerHeader h2 {
+  margin: 6px 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--foreground);
+}
+
+.drawerHeader span:last-child {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.drawerStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 8px 0;
+}
+
+.drawerStats .metric {
+  border: 0;
+  box-shadow: none;
+  padding: 16px 0;
+}
+
+.drawerStats .metric+.metric {
+  padding-left: 16px;
+  border-left: 1px solid var(--rule);
+  border-radius: 0;
+}
+
+.drawerNotice {
+  padding: 20px;
+  color: var(--muted);
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.drawerLines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+.drawerLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+
+.drawerLine:hover {
+  background: var(--background);
+  border-color: var(--rule);
+}
+
+.drawerLine>div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.drawerLine strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.drawerLine span {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.drawerLine>div:last-child {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  font: 700 11px var(--font-geist-mono), monospace;
+}
+
+
+.drawerFooter {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font: 600 10px var(--font-geist-mono), monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}

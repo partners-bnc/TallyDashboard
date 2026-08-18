@@ -693,6 +693,10 @@
   width: 100%;
 }
 
+.searchSmall {
+  max-width: 220px;
+}
+
 .search:focus-within {
   border-color: var(--accent);
   background: var(--paper);

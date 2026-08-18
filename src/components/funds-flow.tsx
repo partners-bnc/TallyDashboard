@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, type FormEvent } from 'react'
+import { useState, useTransition, useEffect, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowUpRight, ArrowsClockwise, CaretDown, Download, Scales, SpinnerGap, X } from '@phosphor-icons/react'
 import type { Company, FundsFlowData, Organization, FundsFlowEntry } from '@/lib/types'
@@ -35,6 +35,13 @@ function PeriodForm({ orgId, companyId, from, to, isPending, startTransition }: 
   )
 }
 
+
+function displayDate(value: string | null | undefined): string {
+  if (!value) return '—'
+  const date = new Date(`${value}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
+
 export function FundsFlow({
   orgId,
   companyId,
@@ -59,6 +66,39 @@ export function FundsFlow({
   const [navigating, setNavigating] = useState(false)
   const [selectedSubgroup, setSelectedSubgroup] = useState<string>('all')
   const [selectedLedger, setSelectedLedger] = useState<string | null>(null)
+  
+  const [selectedVoucherId, setSelectedVoucherId] = useState<string | null>(null)
+  const [voucherDetail, setVoucherDetail] = useState<any>(null)
+  const [voucherError, setVoucherError] = useState('')
+
+  useEffect(() => {
+    if (!selectedVoucherId) return
+
+    const controller = new AbortController()
+    setVoucherDetail(null)
+    setVoucherError('')
+    fetch(`/api/voucher?company=${companyId}&voucher=${selectedVoucherId}`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error ?? 'Could not load voucher details')
+        setVoucherDetail(payload)
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        setVoucherError(reason instanceof Error ? reason.message : 'Could not load voucher details')
+      })
+
+    return () => controller.abort()
+  }, [companyId, selectedVoucherId])
+
+  useEffect(() => {
+    if (!selectedVoucherId) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedVoucherId(null)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [selectedVoucherId])
 
   // Client-side Excel Export using SheetJS
   const exportToExcel = () => {
@@ -701,7 +741,12 @@ export function FundsFlow({
                                   <span>Net Amount</span>
                                 </div>
                                 {displayVouchers.map((line, idx) => (
-                                  <div className={styles.detailRow6} key={idx}>
+                                  <div 
+                                    className={`${styles.detailRow6} ${line.voucherId ? styles.clickableLedgerRow : ''}`} 
+                                    key={idx}
+                                    role={line.voucherId ? 'button' : undefined}
+                                    onClick={() => line.voucherId && setSelectedVoucherId(line.voucherId)}
+                                  >
                                     <span>{line.date ? new Date(line.date).toLocaleDateString('en-IN') : '—'}</span>
                                     <span className="font-semibold text-slate-800">{line.particulars}</span>
                                     <span className={styles.natureTag}>{line.nature || '—'}</span>
@@ -758,6 +803,70 @@ export function FundsFlow({
 
         </div>
       </main>
+
+      {selectedVoucherId && (
+        <div className={styles.drawerBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedVoucherId(null) }}>
+          <aside className={styles.drawer} role="dialog" aria-modal="true" aria-labelledby="voucher-detail-title">
+            <div className={styles.drawerHeader}>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Accounting Voucher</span>
+                <h2 id="voucher-detail-title">
+                  {voucherDetail?.voucher.voucher_type ?? 'Voucher'}
+                  {voucherDetail?.voucher.voucher_number ? ` No. ${voucherDetail.voucher.voucher_number}` : ''}
+                </h2>
+                <span>{voucherDetail?.voucher.voucher_date ? displayDate(voucherDetail.voucher.voucher_date) : 'Loading voucher…'}</span>
+              </div>
+              <button type="button" aria-label="Close voucher details" onClick={() => setSelectedVoucherId(null)} className="p-2 rounded-full hover:bg-slate-100 text-slate-500 flex items-center justify-center">
+                <X size={20} />
+              </button>
+            </div>
+
+            {!voucherDetail && !voucherError ? (
+              <div className={styles.drawerNotice}><SpinnerGap size={20} className="animate-spin mx-auto mb-2" />Loading voucher details…</div>
+            ) : voucherError ? (
+              <div className={styles.drawerNotice}>{voucherError}</div>
+            ) : voucherDetail ? (
+              <>
+                <div className={styles.drawerStats}>
+                  <div className={styles.metric}>
+                    <span>{voucherDetail.voucher.voucher_type?.toLowerCase() === 'purchase' ? 'Supplier Invoice No.' : 'Reference'}</span>
+                    <strong>{voucherDetail.voucher.reference || '—'}</strong>
+                  </div>
+                  <div className={styles.metric}>
+                    <span>Party A/c Name</span>
+                    <strong>{voucherDetail.voucher.party_ledger_name || '—'}</strong>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span>Particulars</span>
+                    <span>Amount</span>
+                  </div>
+                  <div className={styles.drawerLines}>
+                    {voucherDetail.entries.length ? voucherDetail.entries.map((entry: any) => (
+                      <div key={entry.id} className={styles.drawerLine}>
+                        <div><strong>{entry.ledger_name}</strong></div>
+                        <div><strong>{money.format(entry.display_amount)}</strong></div>
+                      </div>
+                    )) : <div className={styles.drawerNotice}>No ledger entries found.</div>}
+                  </div>
+                </div>
+                <div className={styles.drawerFooter}>
+                  <span>Total</span>
+                  <strong>{money.format(voucherDetail.totalAmount)}</strong>
+                </div>
+                {voucherDetail.voucher.narration && (
+                  <div className="border-t border-slate-200 pt-4">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Narration</span>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{voucherDetail.voucher.narration}</p>
+                  </div>
+                )}
+              </>
+            ) : null}
+          </aside>
+        </div>
+      )}
+
       <Footer />
     </div>
   )

@@ -77,16 +77,19 @@ export function Dashboard({
   const router = useRouter()
   const [isApplyingPeriod, startPeriodTransition] = useTransition()
   const [ledgerSearch, setLedgerSearch] = useState('')
+  const [groupSearch, setGroupSearch] = useState('')
   const [dateOpen, setDateOpen] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const selectedOrg = organizations.find((org) => org.id === selectedOrganizationId)
   const selectedCompany = companies.find((company) => company.id === selectedCompanyId)
   
   const filteredLedgers = useMemo(() => {
-    return data?.ledgers.filter((ledger) => 
-      `${ledger.name} ${ledger.parent_name ?? ''}`.toLowerCase().includes(ledgerSearch.toLowerCase())
-    ) ?? []
-  }, [data?.ledgers, ledgerSearch])
+    return data?.ledgers.filter((ledger) => {
+      const matchesLedger = ledger.name.toLowerCase().includes(ledgerSearch.toLowerCase())
+      const matchesGroup = (ledger.parent_name ?? '').toLowerCase().includes(groupSearch.toLowerCase())
+      return matchesLedger && matchesGroup
+    }) ?? []
+  }, [data?.ledgers, ledgerSearch, groupSearch])
 
   const applyPeriod = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -389,13 +392,19 @@ export function Dashboard({
                       <h2>Find a ledger</h2>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 justify-end">
                     <span className={styles.ledgerCount}>
                       {data ? `${data.ledgers.length} ledgers` : '0 ledgers'}
                     </span>
-                    <div className={styles.search}>
-                      <MagnifyingGlass size={18} />
-                      <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="Search ledger or group" aria-label="Search ledger or group" />
+                    <div className="flex items-center gap-2">
+                      <div className={`${styles.search} ${styles.searchSmall}`}>
+                        <MagnifyingGlass size={18} />
+                        <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="Search ledger" aria-label="Search ledger" />
+                      </div>
+                      <div className={`${styles.search} ${styles.searchSmall}`}>
+                        <MagnifyingGlass size={18} />
+                        <input value={groupSearch} onChange={(e) => setGroupSearch(e.target.value)} placeholder="Search group" aria-label="Search group" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -424,7 +433,7 @@ export function Dashboard({
                     ))}
                   </div>
                 ) : (
-                  <EmptyPanel title="No ledgers found" detail={ledgerSearch ? 'Try a different search term.' : 'Chart of accounts is empty for this company.'} />
+                  <EmptyPanel title="No ledgers found" detail={(ledgerSearch || groupSearch) ? 'Try a different search term.' : 'Chart of accounts is empty for this company.'} />
                 )}
               </section>
             </>

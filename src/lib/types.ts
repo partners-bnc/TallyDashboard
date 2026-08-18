@@ -132,6 +132,8 @@ export interface FundsFlowLedger {
   ledgerId?: string
 }
 
+
+
 export interface FundsFlowEntry {
   date: string
   particulars: string
@@ -139,6 +141,7 @@ export interface FundsFlowEntry {
   debit: number
   credit: number
   amount: number
+  voucherId?: string | null
 }
 
 export interface FundsFlowSubgroup {

@@ -385,7 +385,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
   while (hasMore) {
     const linesQuery = supabase
       .from('tb_ledger_voucher_lines')
-      .select('ledger_id,ledger_name,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,voucher_ledger_entry_id')
+      .select('ledger_id,ledger_name,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,voucher_ledger_entry_id,voucher_id')
       .eq('company_id', companyId)
       .gte('voucher_date', fromDate)
       .order('voucher_date', { ascending: true })
@@ -471,7 +471,8 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
       nature: l.ledger_name,
       debit: asNumber(l.debit_amount),
       credit: asNumber(l.credit_amount),
-      amount: asNumber(l.debit_amount) - asNumber(l.credit_amount)
+      amount: asNumber(l.debit_amount) - asNumber(l.credit_amount),
+      voucherId: l.voucher_id
     }
     
     if (!primaryGroupsMap.has(primaryGroup)) {
