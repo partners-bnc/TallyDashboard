@@ -9,6 +9,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { getPublicEnv } from '@/lib/env'
 import { useThemeMode } from '@/app/providers'
 import Sidebar from './Sidebar'
+import { ComplianceReviewLink } from '@/components/compliance-review-link'
 
 const HeaderInner = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -163,6 +164,7 @@ const HeaderInner = () => {
                 </AnimatePresence>
               </div>
               <Link href="/tools" className="text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Tools</Link>
+              <ComplianceReviewLink orgId={searchParams.get('org')} companyId={searchParams.get('company')} />
             </nav>
 
             <div className="flex items-center space-x-3">

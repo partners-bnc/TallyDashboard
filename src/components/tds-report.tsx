@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { AppShell, Card, Dialog, Grid, Heading, HStack, Layout, LayoutContent, Text, VStack } from '@astryxdesign/core'
+import NextLink from 'next/link'
+import { AppShell, Card, Dialog, Grid, Heading, HStack, Layout, LayoutContent, Link, Text, VStack } from '@astryxdesign/core'
 import { ArrowLeft, CalendarDays, Download, Eye, CheckCircle2, AlertTriangle, Clock, TrendingUp, ShieldCheck, AlertCircle, X } from 'lucide-react'
 import Header from '@/components/ui/Header'
 import type { TdsReportData, TdsStatus } from '@/lib/types'
@@ -89,6 +90,13 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
             <Text type="supporting">TDS Liability Clearance · Books reconstructed through {date(asOf)}</Text>
           </VStack>
           <div className="flex items-center gap-3">
+            <Link
+              as={NextLink}
+              href={`/dashboard/compliance-mapping?${query({ org: orgId, company: companyId, returnTo: `/dashboard/tds-report?${query({ org: orgId, company: companyId, from, to })}` })}`}
+              isStandalone
+            >
+              Manage TDS mapping
+            </Link>
             <button 
               onClick={() => router.push(`/dashboard?${query({ org: orgId, company: companyId, from, to })}`)}
               className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 transition-all font-semibold shadow-sm cursor-pointer"
