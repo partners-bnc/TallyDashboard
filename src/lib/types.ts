@@ -21,8 +21,6 @@ export interface Database {
       tds_due_date_overrides: Table<{ id: string; org_id: string; company_id: string; ledger_id: string | null; deduction_month: string; due_date: string; reason: string; created_at: string }>
       tds_transaction_overrides: Table<{ voucher_ledger_entry_id: string; org_id: string; company_id: string; ledger_id: string; classification: string; related_voucher_ledger_entry_id: string | null; note: string; created_at: string; updated_at: string }>
       compliance_mapping_profiles: Table<{ id: string; org_id: string; company_id: string; compliance_type: string; status: 'draft' | 'complete'; confirmed_by: string | null; confirmed_at: string | null; created_at: string; updated_at: string }>
-      compliance_group_decisions: Table<{ id: string; profile_id: string; org_id: string; company_id: string; compliance_type: string; ledger_group_id: string; group_name: string; selected: boolean; suggested: boolean; created_at: string; updated_at: string }>
-      compliance_ledger_decisions: Table<{ id: string; profile_id: string; org_id: string; company_id: string; compliance_type: string; ledger_id: string; selected: boolean; suggested: boolean; suggestion_reason: string | null; confirmed_by: string; created_at: string; updated_at: string }>
     }
     Views: {
       tb_ledger_voucher_lines: View<{ company_id: string | null; ledger_id: string | null; ledger_name: string | null; voucher_ledger_entry_id: string | null; line_number: number | null; voucher_id: string | null; voucher_date: string | null; voucher_type: string | null; voucher_number: string | null; particulars: string | null; debit_amount: number | null; credit_amount: number | null; running_balance: number | null }>
@@ -59,7 +57,7 @@ export interface Database {
         Returns: { mapping_id: string; org_id: string; company_id: string; ledger_id: string; ledger_name: string; tds_type: string; section_code: string | null; rounding_tolerance: number; journal_treatment: string; liability_voucher_types: string[]; deposit_voucher_types: string[]; voucher_ledger_entry_id: string; voucher_id: string; voucher_date: string; voucher_type: string; voucher_number: string | null; party_ledger_name: string | null; narration: string | null; line_number: number; raw_signed_amount: number; override_classification: string | null; related_voucher_ledger_entry_id: string | null; override_note: string | null }[]
       }
       tb_save_tds_compliance_mapping: {
-        Args: { target_org: string; target_company: string; mapping_payload: Json }
+        Args: { target_org: string; target_company: string; selected_ledger_ids: string[] }
         Returns: Json
       }
     }
@@ -282,9 +280,8 @@ export type TdsMappingGroup = {
   name: string
   parentName: string | null
   parentGroupId: string | null
-  selected: boolean
-  suggested: boolean
   directLedgerCount: number
+  isTdsRoot: boolean
 }
 
 export type TdsMappingLedger = {
@@ -293,16 +290,13 @@ export type TdsMappingLedger = {
   parentName: string
   parentGroupId: string | null
   selected: boolean
-  suggested: boolean
-  suggestionReason: string | null
-  hasSavedDecision: boolean
 }
 
 export type TdsMappingCompany = {
   companyId: string
   companyName: string
   configured: boolean
-  reviewRequiredCount: number
+  tdsGroupFound: boolean
   groups: TdsMappingGroup[]
   ledgers: TdsMappingLedger[]
 }
@@ -316,13 +310,7 @@ export type TdsComplianceMappingData = {
 export type SaveTdsComplianceMappingPayload = {
   orgId: string
   companyId: string
-  groups: Array<{ groupId: string; selected: boolean; suggested: boolean }>
-  ledgers: Array<{
-    ledgerId: string
-    selected: boolean
-    suggested: boolean
-    suggestionReason: string | null
-  }>
+  selectedLedgerIds: string[]
 }
 
 

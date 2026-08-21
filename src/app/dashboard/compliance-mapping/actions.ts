@@ -3,22 +3,16 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import type { Json, SaveTdsComplianceMappingPayload } from '@/lib/types'
+import type { SaveTdsComplianceMappingPayload } from '@/lib/types'
 
 const payloadSchema = z.object({
   orgId: z.string().uuid(),
   companyId: z.string().uuid(),
-  groups: z.array(z.object({
-    groupId: z.string().uuid(),
-    selected: z.boolean(),
-    suggested: z.boolean(),
-  })).max(2000),
-  ledgers: z.array(z.object({
-    ledgerId: z.string().uuid(),
-    selected: z.boolean(),
-    suggested: z.boolean(),
-    suggestionReason: z.string().trim().max(500).nullable(),
-  })).max(10000),
+  selectedLedgerIds: z.array(z.string().uuid()).max(10000),
+}).superRefine((payload, context) => {
+  if (new Set(payload.selectedLedgerIds).size !== payload.selectedLedgerIds.length) {
+    context.addIssue({ code: 'custom', message: 'Selected ledgers must be unique.' })
+  }
 })
 
 export type SaveTdsMappingResult = { ok: true } | { ok: false; error: string }
@@ -44,10 +38,7 @@ export async function saveTdsComplianceMapping(
   const { error } = await supabase.rpc('tb_save_tds_compliance_mapping', {
     target_org: parsed.data.orgId,
     target_company: parsed.data.companyId,
-    mapping_payload: {
-      groups: parsed.data.groups,
-      ledgers: parsed.data.ledgers,
-    } as unknown as Json,
+    selected_ledger_ids: parsed.data.selectedLedgerIds,
   })
   if (error) return { ok: false, error: `Could not save TDS mappings: ${error.message}` }
 

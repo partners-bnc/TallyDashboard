@@ -15,14 +15,27 @@ export function ComplianceGate({ userId, children }: { userId: string; children:
 
   useEffect(() => {
     if (isExempt || !orgId || !companyId) return
+    const controller = new AbortController()
     const scope = `${orgId}:${companyId}`
-    if (localStorage.getItem(tdsMappingStorageKey(userId, orgId, companyId)) === 'complete') {
-      queueMicrotask(() => setApprovedScope(scope))
-      return undefined
-    }
-    const query = searchParams.toString()
-    const returnTo = `${pathname}${query ? `?${query}` : ''}`
-    router.replace(`/dashboard/compliance-mapping?org=${encodeURIComponent(orgId)}&company=${encodeURIComponent(companyId)}&returnTo=${encodeURIComponent(returnTo)}`)
+    const storageKey = tdsMappingStorageKey(userId, orgId, companyId)
+    fetch(`/api/compliance/review-count?org=${encodeURIComponent(orgId)}&company=${encodeURIComponent(companyId)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => {
+        if (controller.signal.aborted) return
+        if (result?.reviewRequiredCount === 0) {
+          localStorage.setItem(storageKey, 'complete')
+          queueMicrotask(() => setApprovedScope(scope))
+          return
+        }
+        localStorage.removeItem(storageKey)
+        const query = searchParams.toString()
+        const returnTo = `${pathname}${query ? `?${query}` : ''}`
+        router.replace(`/dashboard/compliance-mapping?org=${encodeURIComponent(orgId)}&company=${encodeURIComponent(companyId)}&returnTo=${encodeURIComponent(returnTo)}`)
+      })
+      .catch(() => undefined)
+    return () => controller.abort()
   }, [companyId, isExempt, orgId, pathname, router, searchParams, userId])
 
   return isExempt || approvedScope === `${orgId}:${companyId}` ? children : null

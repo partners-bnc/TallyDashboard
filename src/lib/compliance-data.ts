@@ -2,14 +2,56 @@ import 'server-only'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
-  isSuggestedTdsGroup,
+  isPayableTdsCandidate,
+  isInitiallySelectedTdsCandidate,
+  isTdsGroupName,
   normalizeTdsName,
   resolveLedgerGroupParents,
-  tdsLedgerSuggestion,
+  tdsHierarchyGroupIds,
 } from '@/lib/tds-mapping'
 import type { TdsComplianceMappingData, TdsMappingGroup } from '@/lib/types'
 
 const PAGE_SIZE = 1000
+
+export async function isTdsMappingComplete(orgId: string, companyId: string) {
+  const supabase = await createSupabaseServerClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) throw new Error('Authentication required')
+
+  const [membershipResult, companyResult, profileResult] = await Promise.all([
+    supabase
+      .from('tb_org_members')
+      .select('org_id')
+      .eq('org_id', orgId)
+      .eq('user_id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('tb_companies')
+      .select('id')
+      .eq('id', companyId)
+      .eq('org_id', orgId)
+      .eq('is_active', true)
+      .maybeSingle(),
+    supabase
+      .from('compliance_mapping_profiles')
+      .select('status')
+      .eq('org_id', orgId)
+      .eq('company_id', companyId)
+      .eq('compliance_type', 'TDS')
+      .maybeSingle(),
+  ])
+
+  if (membershipResult.error || !membershipResult.data) {
+    throw new Error('Organization membership required')
+  }
+  if (companyResult.error || !companyResult.data) {
+    throw new Error('The selected company is not available in this workspace')
+  }
+  if (profileResult.error) {
+    throw new Error(`Could not load TDS mapping status: ${profileResult.error.message}`)
+  }
+  return profileResult.data?.status === 'complete'
+}
 
 export async function getTdsComplianceMappingData(
   orgId: string,
@@ -77,32 +119,26 @@ export async function getTdsComplianceMappingData(
     if ((data?.length ?? 0) < PAGE_SIZE) break
   }
 
-  const [profileResult, groupDecisionsResult, ledgerDecisionsResult] = await Promise.all([
+  const [profileResult, mappingsResult] = await Promise.all([
     supabase
       .from('compliance_mapping_profiles')
-      .select('id,status,confirmed_at')
+      .select('status')
       .eq('org_id', orgId)
       .eq('company_id', companyId)
       .eq('compliance_type', 'TDS')
       .maybeSingle(),
     supabase
-      .from('compliance_group_decisions')
-      .select('ledger_group_id,selected,suggested')
+      .from('tds_ledger_mappings')
+      .select('ledger_id')
       .eq('org_id', orgId)
       .eq('company_id', companyId)
-      .eq('compliance_type', 'TDS'),
-    supabase
-      .from('compliance_ledger_decisions')
-      .select('ledger_id,selected,suggested,suggestion_reason')
-      .eq('org_id', orgId)
-      .eq('company_id', companyId)
-      .eq('compliance_type', 'TDS'),
+      .eq('is_payable_ledger', true),
   ])
-  const loadError = profileResult.error ?? groupDecisionsResult.error ?? ledgerDecisionsResult.error
+  const loadError = profileResult.error ?? mappingsResult.error
   if (loadError) throw new Error(`Could not load TDS mappings: ${loadError.message}`)
 
-  const savedGroups = new Map((groupDecisionsResult.data ?? []).map((item) => [item.ledger_group_id, item]))
-  const savedLedgers = new Map((ledgerDecisionsResult.data ?? []).map((item) => [item.ledger_id, item]))
+  const configured = profileResult.data?.status === 'complete'
+  const savedLedgerIds = new Set((mappingsResult.data ?? []).map((mapping) => mapping.ledger_id))
   const resolvedGroups = resolveLedgerGroupParents(ledgerGroups.map((group) => ({
     groupId: group.id,
     name: group.name,
@@ -110,43 +146,42 @@ export async function getTdsComplianceMappingData(
     parentGroupId: group.parent_group_id,
   })))
   const groupIdByName = new Map(resolvedGroups.map((group) => [normalizeTdsName(group.name), group.groupId]))
+  const resolvedGroupIds = new Set(resolvedGroups.map((group) => group.groupId))
+  const hierarchyIds = tdsHierarchyGroupIds(resolvedGroups)
   const directLedgerCounts = new Map<string, number>()
 
   const resolvedLedgers = ledgers.map((ledger) => {
-    const parentGroupId = ledger.parent_group_id && resolvedGroups.some((group) => group.groupId === ledger.parent_group_id)
+    const parentGroupId = ledger.parent_group_id && resolvedGroupIds.has(ledger.parent_group_id)
       ? ledger.parent_group_id
       : groupIdByName.get(normalizeTdsName(ledger.parent_name)) ?? null
-    if (parentGroupId) directLedgerCounts.set(parentGroupId, (directLedgerCounts.get(parentGroupId) ?? 0) + 1)
     return { ...ledger, parentGroupId }
   })
 
-  const groups: TdsMappingGroup[] = resolvedGroups.map((group) => {
-    const saved = savedGroups.get(group.groupId)
-    const suggested = isSuggestedTdsGroup(group.name)
-    return {
-      ...group,
-      selected: saved?.selected ?? suggested,
-      suggested,
-      directLedgerCount: directLedgerCounts.get(group.groupId) ?? 0,
-    }
-  })
-  const suggestedGroupIds = new Set(groups.filter((group) => group.suggested).map((group) => group.groupId))
-  let reviewRequiredCount = 0
-  const mappingLedgers = resolvedLedgers.map((ledger) => {
-    const saved = savedLedgers.get(ledger.id)
-    const suggestion = tdsLedgerSuggestion(ledger.name, Boolean(ledger.parentGroupId && suggestedGroupIds.has(ledger.parentGroupId)))
-    if (!saved && suggestion.suggested) reviewRequiredCount += 1
-    return {
-      ledgerId: ledger.id,
+  const candidates = resolvedLedgers
+    .filter((ledger) => isPayableTdsCandidate({
       ledgerName: ledger.name,
-      parentName: ledger.parent_name?.trim() || 'Unassigned',
       parentGroupId: ledger.parentGroupId,
-      selected: saved?.selected ?? suggestion.selected,
-      suggested: suggestion.suggested,
-      suggestionReason: saved?.suggestion_reason ?? suggestion.suggestionReason,
-      hasSavedDecision: Boolean(saved),
-    }
-  })
+    }, hierarchyIds))
+    .map((ledger) => {
+      if (ledger.parentGroupId) {
+        directLedgerCounts.set(ledger.parentGroupId, (directLedgerCounts.get(ledger.parentGroupId) ?? 0) + 1)
+      }
+      return {
+        ledgerId: ledger.id,
+        ledgerName: ledger.name,
+        parentName: ledger.parent_name?.trim() || 'TDS',
+        parentGroupId: ledger.parentGroupId,
+        selected: isInitiallySelectedTdsCandidate(ledger.id, configured, savedLedgerIds),
+      }
+    })
+
+  const groups: TdsMappingGroup[] = resolvedGroups
+    .filter((group) => hierarchyIds.has(group.groupId))
+    .map((group) => ({
+      ...group,
+      directLedgerCount: directLedgerCounts.get(group.groupId) ?? 0,
+      isTdsRoot: isTdsGroupName(group.name),
+    }))
 
   return {
     orgId,
@@ -154,10 +189,10 @@ export async function getTdsComplianceMappingData(
     company: {
       companyId: company.id,
       companyName: company.name,
-      configured: profileResult.data?.status === 'complete',
-      reviewRequiredCount,
+      configured,
+      tdsGroupFound: groups.some((group) => group.isTdsRoot),
       groups,
-      ledgers: mappingLedgers,
+      ledgers: candidates,
     },
   }
 }

@@ -1,66 +1,76 @@
 import { describe, expect, it } from 'vitest'
 import {
-  groupAncestorIds,
-  groupDescendantIds,
   isExcludedFromTdsSuggestion,
-  isSuggestedTdsGroup,
-  isSuggestedTdsLedger,
+  isInitiallySelectedTdsCandidate,
+  isPayableTdsCandidate,
+  isTdsGroupName,
   normalizeTdsName,
   resolveLedgerGroupParents,
-  tdsLedgerSuggestion,
+  tdsHierarchyGroupIds,
 } from '@/lib/tds-mapping'
 import type { TdsMappingGroup } from '@/lib/types'
 
-describe('TDS mapping suggestions', () => {
+describe('TDS hierarchy discovery', () => {
+  it('matches the standalone TDS term case-insensitively and the expanded name', () => {
+    expect(isTdsGroupName('Tds')).toBe(true)
+    expect(isTdsGroupName('Statutory TDS Payable')).toBe(true)
+    expect(isTdsGroupName('Tax Deducted at Source')).toBe(true)
+    expect(isTdsGroupName('Duties & Taxes')).toBe(false)
+    expect(isTdsGroupName('TDSPayable')).toBe(false)
+  })
+
   it('normalizes punctuation and case', () => {
     expect(normalizeTdsName(' TDS-on  Contract (194 C) ')).toBe('tds on contract 194 c')
   })
 
-  it('suggests TDS groups without matching unrelated tax groups', () => {
-    expect(isSuggestedTdsGroup('Tds')).toBe(true)
-    expect(isSuggestedTdsGroup('Tax Deducted at Source')).toBe(true)
-    expect(isSuggestedTdsGroup('Duties & Taxes')).toBe(false)
-  })
+  it('finds a TDS subgroup and every nested subgroup without including siblings', () => {
+    const groups: TdsMappingGroup[] = [
+      { groupId: 'duties', name: 'Duties & Taxes', parentName: 'Current Liabilities', parentGroupId: null, directLedgerCount: 0, isTdsRoot: false },
+      { groupId: 'tds', name: 'TDS', parentName: 'Duties & Taxes', parentGroupId: null, directLedgerCount: 1, isTdsRoot: true },
+      { groupId: 'contractors', name: 'Contractor deductions', parentName: 'TDS', parentGroupId: null, directLedgerCount: 1, isTdsRoot: false },
+      { groupId: 'lower', name: 'Lower deduction certificates', parentName: 'Contractor deductions', parentGroupId: null, directLedgerCount: 1, isTdsRoot: false },
+      { groupId: 'gst', name: 'GST', parentName: 'Duties & Taxes', parentGroupId: null, directLedgerCount: 1, isTdsRoot: false },
+    ]
 
-  it.each([
-    'TDS Receivables',
-    'TDS Recoverable',
-    'Interest on Late TDS',
-    'TDS LATE FILING FEES 234E',
-  ])('keeps %s searchable but unchecked', (name) => {
-    expect(isExcludedFromTdsSuggestion(name)).toBe(true)
-    expect(isSuggestedTdsLedger(name)).toBe(false)
-    expect(tdsLedgerSuggestion(name, true).selected).toBe(false)
-  })
-
-  it.each([
-    'TDS on Contractor (194 C)',
-    'TDS on Professional Fees 194 J',
-    'TDS on Rent',
-    'TDS on Salary',
-    '194J',
-  ])('auto-selects deduction ledger %s', (name) => {
-    expect(isSuggestedTdsLedger(name)).toBe(true)
+    const resolved = resolveLedgerGroupParents(groups)
+    expect(resolved.find((group) => group.groupId === 'tds')?.parentGroupId).toBe('duties')
+    expect(tdsHierarchyGroupIds(resolved)).toEqual(new Set(['tds', 'contractors', 'lower']))
   })
 })
 
-describe('ledger group hierarchy', () => {
-  const groups: TdsMappingGroup[] = [
-    { groupId: 'duties', name: 'Duties & Taxes', parentName: 'Current Liabilities', parentGroupId: null, selected: false, suggested: false, directLedgerCount: 1 },
-    { groupId: 'tds', name: 'Tds', parentName: 'Duties & Taxes', parentGroupId: null, selected: true, suggested: true, directLedgerCount: 4 },
-    { groupId: 'gst', name: 'GST', parentName: 'Duties & Taxes', parentGroupId: null, selected: false, suggested: false, directLedgerCount: 2 },
-  ]
-
-  it('falls back to parent names when Tally group IDs are absent', () => {
-    const resolved = resolveLedgerGroupParents(groups)
-    expect(resolved.find((group) => group.groupId === 'tds')?.parentGroupId).toBe('duties')
-    expect(resolved.find((group) => group.groupId === 'gst')?.parentGroupId).toBe('duties')
+describe('TDS payable candidates', () => {
+  it.each([
+    'TDS Receivable',
+    'TDS Recoverable',
+    'Interest on TDS',
+    'TDS Penalty',
+    'TDS Late Fee',
+    'TDS Filing Fee',
+    'TDS LATE FILING FEES 234E',
+  ])('excludes %s', (name) => {
+    expect(isExcludedFromTdsSuggestion(name)).toBe(true)
+    expect(isPayableTdsCandidate(
+      { ledgerName: name, parentGroupId: 'tds' },
+      new Set(['tds']),
+    )).toBe(false)
   })
 
-  it('finds ancestors and descendants without selecting sibling branches', () => {
-    const resolved = resolveLedgerGroupParents(groups)
-    expect([...groupAncestorIds(resolved, 'tds')]).toEqual(['duties'])
-    expect(groupDescendantIds(resolved, 'duties')).toEqual(new Set(['duties', 'tds', 'gst']))
-    expect(groupDescendantIds(resolved, 'tds')).toEqual(new Set(['tds']))
+  it('includes payable ledgers in nested TDS groups and rejects outside ledgers', () => {
+    const scope = new Set(['tds', 'nested'])
+    expect(isPayableTdsCandidate(
+      { ledgerName: 'Contractor deduction', parentGroupId: 'nested' },
+      scope,
+    )).toBe(true)
+    expect(isPayableTdsCandidate(
+      { ledgerName: 'TDS AY 2024-25', parentGroupId: 'duties' },
+      scope,
+    )).toBe(false)
+  })
+
+  it('uses suggestions only before completion and saved rows after completion', () => {
+    const saved = new Set(['saved-ledger'])
+    expect(isInitiallySelectedTdsCandidate('new-ledger', false, saved)).toBe(true)
+    expect(isInitiallySelectedTdsCandidate('saved-ledger', true, saved)).toBe(true)
+    expect(isInitiallySelectedTdsCandidate('new-ledger', true, saved)).toBe(false)
   })
 })
