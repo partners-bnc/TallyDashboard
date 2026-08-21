@@ -4,7 +4,7 @@ import { getTdsReportData, listCompanies, listOrganizations } from '@/lib/data'
 import { normalizePeriodQuery } from '@/lib/period'
 import { currentFinancialYear, TDS_BOOKS_AS_OF_DATE } from '@/lib/tds'
 
-export default async function TdsReportPage({ searchParams }: { searchParams: Promise<{ org?: string; company?: string; from?: string; to?: string; ledger?: string }> }) {
+export default async function TdsReportPage({ searchParams }: { searchParams: Promise<{ org?: string; company?: string; from?: string; to?: string; ledger?: string; lockLedger?: string }> }) {
   const params = await searchParams
   const period = normalizePeriodQuery(params.from, params.to)
   const financialYear = currentFinancialYear()
@@ -24,6 +24,7 @@ export default async function TdsReportPage({ searchParams }: { searchParams: Pr
   if (period.isValid && asOf >= from) {
     try { data = await getTdsReportData(company.id, from, to, asOf) } catch { data = null }
   }
+  const lockLedger = params.lockLedger === 'true'
   const initialLedger = params.ledger && data?.ledgerOptions.some((option) => option.id === params.ledger) ? params.ledger : 'all'
-  return <TdsReport orgId={orgId} companyId={company.id} companyName={company.name} data={data} from={from} to={to} asOf={asOf} initialLedger={initialLedger} />
+  return <TdsReport orgId={orgId} companyId={company.id} companyName={company.name} data={data} from={from} to={to} asOf={asOf} initialLedger={initialLedger} lockLedger={lockLedger} />
 }

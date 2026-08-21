@@ -30,6 +30,7 @@ function tdsReportHref(org: string | null, company: string | null, ledger: strin
   if (org) params.set('org', org)
   if (company) params.set('company', company)
   params.set('ledger', ledger)
+  params.set('lockLedger', 'true')
   if (from) params.set('from', from)
   if (to) params.set('to', to)
   return `/dashboard/tds-report?${params.toString()}`
@@ -297,6 +298,7 @@ export function Dashboard({
                     <Metric label="Debit movement" value={money.format(data.kpis.debit)} tone={styles.debit} icon={TrendUp} />
                     <Metric label="Credit movement" value={money.format(data.kpis.credit)} tone={styles.credit} icon={TrendDown} />
                     <Metric label="Net movement" value={money.format(data.kpis.netMovement)} tone={styles.net} icon={Scales} />
+                    <Metric label="TDS Outstanding" value={tdsMoney.format(totalTdsOutstanding)} tone={totalTdsOutstanding > 0 ? styles.debit : ''} icon={ShieldCheck} />
                   </>
                 ) : (
                   <EmptyPanel title="No overview yet" detail="Select a company with available accounting data." />
@@ -351,7 +353,7 @@ export function Dashboard({
 
               <section className={styles.gridLower}>
                 <article className={`${styles.panel} ${styles.recent}`}>
-                  <div className={styles.panelHeader}>
+                  <div className={styles.panelHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
                     <div>
                       <span className={styles.eyebrow}>Books at 31 Mar 2027</span>
                       <div className="flex items-center gap-2 mt-1">
@@ -359,6 +361,14 @@ export function Dashboard({
                         <h2>TDS compliances</h2>
                       </div>
                     </div>
+                    <Link
+                      href={`/dashboard/tds-report?org=${selectedOrganizationId ?? ''}&company=${selectedCompanyId ?? ''}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}&ledger=all`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg transition-colors border border-blue-100 dark:border-blue-900/50 cursor-pointer"
+                      style={{ alignSelf: 'center' }}
+                    >
+                      <ArrowUpRight size={14} weight="bold" />
+                      View All
+                    </Link>
                   </div>
                   {tdsData ? (
                     <div className={styles.tdsTable}>

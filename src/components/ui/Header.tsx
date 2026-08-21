@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Menu, X, User, ChevronDown, Database, BarChart3, PieChart, Globe, MessageSquare, Upload, Sun, Moon } from 'lucide-react'
+import { Menu, X, User, ChevronDown, Database, BarChart3, PieChart, Globe, MessageSquare, Upload, Sun, Moon, ShieldCheck } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createBrowserClient } from '@supabase/ssr'
 import { getPublicEnv } from '@/lib/env'
@@ -13,6 +13,7 @@ import Sidebar from './Sidebar'
 const HeaderInner = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isServicesOpen, setIsServicesOpen] = useState(false)
+  const [isReportsOpen, setIsReportsOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const { mode, toggleMode } = useThemeMode()
   
@@ -162,7 +163,62 @@ const HeaderInner = () => {
                   )}
                 </AnimatePresence>
               </div>
-              <Link href="/tools" className="text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Tools</Link>
+              
+              <div className="relative"
+                onMouseEnter={() => setIsReportsOpen(true)}
+                onMouseLeave={() => setIsReportsOpen(false)}
+              >
+                <button className="flex items-center text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">
+                  Reports
+                  <ChevronDown className="ml-1 w-4 h-4" />
+                </button>
+                <AnimatePresence>
+                  {isReportsOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute top-full left-0 mt-2 w-[400px] bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 p-6 z-50"
+                    >
+                      <div className="flex flex-col gap-4">
+                        <Link href={withParams('/dashboard/trial-balance')} className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border dark:border-gray-700">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/40 rounded-lg flex items-center justify-center">
+                              <PieChart className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Trial Balance (MIS)</h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Automated balance sheets & trial balances</p>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link href={withParams('/dashboard/tds-report')} className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border dark:border-gray-700">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center">
+                              <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">TDS Compliance Report</h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Liability clearance & chronological FIFO audit</p>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link href={withParams('/dashboard/funds-flow')} className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border dark:border-gray-700">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/40 rounded-lg flex items-center justify-center">
+                              <BarChart3 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Funds Flow Statement</h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Management Report & Funds Utilization</p>
+                            </div>
+                          </div>
+                        </Link>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </nav>
 
             <div className="flex items-center space-x-3">
