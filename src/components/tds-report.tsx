@@ -123,60 +123,21 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
     <VStack gap={8}>
       {/* Premium Header Box */}
       <Card padding={5} style={{ background: 'var(--paper)', border: '1px solid var(--rule)', boxShadow: 'var(--shadow-soft)' }}>
-<<<<<<< HEAD
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <VStack gap={1}>
-            <Text type="supporting" weight="semibold">TAX COMPLIANCE · LIABILITY WORKBENCH</Text>
-            <Heading level={1} style={{ fontSize: '28px', fontWeight: '700', letterSpacing: '-0.03em' }}>{companyName}</Heading>
-            <Text type="supporting">TDS Liability Clearance · Books reconstructed through {date(asOf)}</Text>
-          </VStack>
-          <div className="flex items-center gap-3">
-            <Link
-              as={NextLink}
-              href={`/dashboard/compliance-mapping?${query({ org: orgId, company: companyId, returnTo: `/dashboard/tds-report?${query({ org: orgId, company: companyId, from, to })}` })}`}
-              isStandalone
-            >
-              Manage TDS mapping
-            </Link>
-            <button 
-              onClick={() => router.push(`/dashboard?${query({ org: orgId, company: companyId, from, to })}`)}
-              className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 transition-all font-semibold shadow-sm cursor-pointer"
-            >
-              <ArrowLeft size={16} />
-              Dashboard
-            </button>
-            <button 
-              disabled={!data}
-              onClick={() => data && exportWorkbook(data, companyName)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm transition-all font-semibold shadow-sm cursor-pointer"
-            >
-              <Download size={16} />
-              Export Workbook
-            </button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Deduction Period Card */}
-      <Card padding={5} style={{ background: 'var(--paper)', border: '1px solid var(--rule)', boxShadow: 'var(--shadow-soft)' }}>
-        <VStack gap={4}>
-          <HStack gap={3} align="center">
-            <div style={{ padding: '8px', borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-              <CalendarDays size={20} />
-            </div>
-            <VStack gap={0.5}>
-              <Heading level={3}>Deduction Period</Heading>
-              <Text type="supporting">Filter deduction months. Books and deposit matching remain fixed through {date(asOf)}.</Text>
-=======
         <VStack gap={5}>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <VStack gap={1}>
               <Text type="supporting" weight="semibold">TAX COMPLIANCE · LIABILITY WORKBENCH</Text>
               <Heading level={1} style={{ fontSize: '28px', fontWeight: '700', letterSpacing: '-0.03em' }}>{companyName}</Heading>
               <Text type="supporting">TDS Liability Clearance · Books reconstructed through {date(asOf)}</Text>
->>>>>>> cf1f478741204894b5364dd31e579d0f04e315cd
             </VStack>
             <div className="flex items-center gap-3">
+              <Link
+                as={NextLink}
+                href={`/dashboard/compliance-mapping?${query({ org: orgId, company: companyId, returnTo: `/dashboard/tds-report?${query({ org: orgId, company: companyId, from, to })}` })}`}
+                isStandalone
+              >
+                Manage TDS mapping
+              </Link>
               <button 
                 onClick={() => router.push(`/dashboard?${query({ org: orgId, company: companyId, from, to })}`)}
                 className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 transition-all font-semibold shadow-sm cursor-pointer"

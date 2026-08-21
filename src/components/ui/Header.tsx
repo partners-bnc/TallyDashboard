@@ -164,11 +164,6 @@ const HeaderInner = () => {
                   )}
                 </AnimatePresence>
               </div>
-<<<<<<< HEAD
-              <Link href="/tools" className="text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Tools</Link>
-              <ComplianceReviewLink orgId={searchParams.get('org')} companyId={searchParams.get('company')} />
-=======
-              
               <div className="relative"
                 onMouseEnter={() => setIsReportsOpen(true)}
                 onMouseLeave={() => setIsReportsOpen(false)}
@@ -224,7 +219,8 @@ const HeaderInner = () => {
                   )}
                 </AnimatePresence>
               </div>
->>>>>>> cf1f478741204894b5364dd31e579d0f04e315cd
+              <Link href="/tools" className="text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Tools</Link>
+              <ComplianceReviewLink orgId={searchParams.get('org')} companyId={searchParams.get('company')} />
             </nav>
 
             <div className="flex items-center space-x-3">

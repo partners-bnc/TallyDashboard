@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest'
 const migration = readFileSync(
   resolve('supabase/migrations/20260820163647_simplify_tds_ledger_mapping.sql'),
   'utf8',
-)
+).replace(/\r\n/g, '\n')
 const jammuCorrection = readFileSync(
   resolve('supabase/migrations/20260820165223_restore_jammu_confirmed_tds_mappings.sql'),
   'utf8',
-)
+).replace(/\r\n/g, '\n')
 
 describe('simplified TDS compliance mapping migration', () => {
   it('removes drafts, their mappings, and both decision tables', () => {
