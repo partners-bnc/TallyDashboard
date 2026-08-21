@@ -18,15 +18,10 @@ export type TdsSourceLine = {
   party: string | null
   narration: string | null
   rawSignedAmount: number
-  overrideClassification: string | null
-  relatedVoucherLedgerEntryId: string | null
-  overrideNote: string | null
 }
 
 export type TdsLedgerBalance = { ledgerId: string; openingBalance: number; closingBalance: number }
-export type TdsDueRule = { ruleCode: string; deductionMonth: number; dueMonthOffset: number; dueDay: number; effectiveFrom: string; effectiveTo: string | null }
-export type TdsDueOverride = { ledgerId: string | null; deductionMonth: string; dueDate: string }
-export type TdsReportInput = { companyId: string; asOfDate: string; from: string; to: string; lines: TdsSourceLine[]; ledgerBalances: TdsLedgerBalance[]; dueRules: TdsDueRule[]; dueOverrides: TdsDueOverride[] }
+export type TdsReportInput = { companyId: string; asOfDate: string; from: string; to: string; lines: TdsSourceLine[]; ledgerBalances: TdsLedgerBalance[] }
 
 type LiabilityBatch = {
   id: string
@@ -85,7 +80,6 @@ export function currentFinancialYear(today = new Date()): { from: string; to: st
 }
 
 function classification(line: TdsSourceLine): TdsClassification {
-  if (line.overrideClassification) return line.overrideClassification as TdsClassification
   const voucherType = line.voucherType.toLowerCase()
   const isDepositVoucher = line.depositVoucherTypes.some((type) => type.toLowerCase() === voucherType)
   const isLiabilityVoucher = line.liabilityVoucherTypes.some((type) => type.toLowerCase() === voucherType)
@@ -96,21 +90,17 @@ function classification(line: TdsSourceLine): TdsClassification {
 }
 
 function transaction(line: TdsSourceLine, kind: TdsClassification, amount = Math.abs(line.rawSignedAmount)): TdsAuditTransaction {
-  return { id: line.voucherLedgerEntryId, date: line.voucherDate, voucherType: line.voucherType, voucherNumber: line.voucherNumber, party: line.party, rawSignedAmount: round(line.rawSignedAmount), amount: round(amount), classification: kind, note: line.overrideNote ?? line.narration }
+  return { id: line.voucherLedgerEntryId, date: line.voucherDate, voucherType: line.voucherType, voucherNumber: line.voucherNumber, party: line.party, rawSignedAmount: round(line.rawSignedAmount), amount: round(amount), classification: kind, note: line.narration }
 }
 
 function transactionAmount(source: TdsAuditTransaction, amount: number): TdsAuditTransaction {
   return { ...source, amount: round(amount) }
 }
 
-function dueDate(line: TdsSourceLine, overrides: TdsDueOverride[], rules: TdsDueRule[]): string | null {
+function dueDate(line: TdsSourceLine): string {
   const deductionMonth = monthOf(line.voucherDate)
-  const override = overrides.find((item) => item.deductionMonth === deductionMonth && item.ledgerId === line.ledgerId)
-    ?? overrides.find((item) => item.deductionMonth === deductionMonth && item.ledgerId === null)
-  if (override) return override.dueDate
   const deductionMonthNumber = Number(deductionMonth.slice(5, 7))
-  const rule = rules.find((item) => item.deductionMonth === deductionMonthNumber && item.effectiveFrom <= line.voucherDate && (!item.effectiveTo || item.effectiveTo >= line.voucherDate))
-  return rule ? dateAtDay(addMonths(deductionMonth, rule.dueMonthOffset), rule.dueDay) : null
+  return dateAtDay(addMonths(deductionMonth, 1), deductionMonthNumber === 3 ? 30 : 7)
 }
 
 function addTransaction(target: TdsAuditTransaction[], source: TdsAuditTransaction, amount: number) {
@@ -164,7 +154,7 @@ export function buildTdsReport(input: TdsReportInput): TdsReportData {
       return source
     }
     const makeBatch = (line: TdsSourceLine, kind: TdsClassification, amount: number, reviewRequired: boolean, countedDeduction: boolean) => {
-      const batch: LiabilityBatch = { id: line.voucherLedgerEntryId, ledgerId, ledgerName: line.ledgerName, tdsType: line.tdsType, sectionCode: line.sectionCode, deductionMonth: monthOf(line.voucherDate), date: line.voucherDate, originalAmount: amount, remaining: amount, dueDate: kind === 'PAYMENT_REVERSAL' ? null : dueDate(line, input.dueOverrides, input.dueRules), reviewRequired, opening: false, liabilityTransactions: [transaction(line, kind, amount)], depositTransactions: [], allocations: [], deducted: countedDeduction ? amount : 0, reversed: 0 }
+      const batch: LiabilityBatch = { id: line.voucherLedgerEntryId, ledgerId, ledgerName: line.ledgerName, tdsType: line.tdsType, sectionCode: line.sectionCode, deductionMonth: monthOf(line.voucherDate), date: line.voucherDate, originalAmount: amount, remaining: amount, dueDate: kind === 'PAYMENT_REVERSAL' ? null : dueDate(line), reviewRequired, opening: false, liabilityTransactions: [transaction(line, kind, amount)], depositTransactions: [], allocations: [], deducted: countedDeduction ? amount : 0, reversed: 0 }
       ledgerBatches.push(batch)
       batches.push(batch)
       return batch
@@ -236,7 +226,7 @@ export function buildTdsReport(input: TdsReportInput): TdsReportData {
     const sorted = [...ledgerLines].sort((a, b) => a.voucherDate.localeCompare(b.voucherDate) || a.voucherLedgerEntryId.localeCompare(b.voucherLedgerEntryId))
     for (const line of sorted) {
       const kind = classification(line)
-      if (kind === 'EXCLUDE' || Math.abs(line.rawSignedAmount) <= EPSILON) continue
+      if (Math.abs(line.rawSignedAmount) <= EPSILON) continue
       const amount = round(Math.abs(line.rawSignedAmount))
 
       if (kind === 'DEDUCTION' || kind === 'ADJUSTMENT') {
@@ -257,8 +247,7 @@ export function buildTdsReport(input: TdsReportInput): TdsReportData {
       if (kind === 'REVERSAL') {
         const source = registerSource({ id: line.voucherLedgerEntryId, type: 'REVERSAL', date: line.voucherDate, voucherNumber: line.voucherNumber, transaction: transaction(line, kind, amount), remaining: amount, allocations: [] })
         const compatible = ledgerBatches.filter((batch) => batch.originalAmount - batch.reversed > EPSILON)
-        const linked = line.relatedVoucherLedgerEntryId ? compatible.filter((batch) => batch.id === line.relatedVoucherLedgerEntryId) : []
-        const candidates = line.relatedVoucherLedgerEntryId ? linked : [...compatible].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
+        const candidates = [...compatible].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
         for (const batch of candidates) {
           if (source.remaining <= EPSILON) break
           applyReversal(source, batch, source.remaining)
@@ -268,13 +257,7 @@ export function buildTdsReport(input: TdsReportInput): TdsReportData {
 
       if (kind === 'PAYMENT_REVERSAL') {
         let left = amount
-        const linkedSource = line.relatedVoucherLedgerEntryId ? sourceById.get(line.relatedVoucherLedgerEntryId) : null
-        const candidates = linkedSource?.type === 'DEPOSIT'
-          ? [linkedSource]
-          : line.relatedVoucherLedgerEntryId
-            ? []
-            : [...sourceById.values()].filter((source) => source.type === 'DEPOSIT').sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
-        const uncertain = !line.relatedVoucherLedgerEntryId
+        const candidates = [...sourceById.values()].filter((source) => source.type === 'DEPOSIT').sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
         for (const source of candidates) {
           if (left <= EPSILON) break
           const unused = round(Math.min(source.remaining, left))
@@ -292,7 +275,7 @@ export function buildTdsReport(input: TdsReportInput): TdsReportData {
             batch.remaining = round(batch.remaining + restored)
             removeTransaction(batch.depositTransactions, source.id, restored)
             addTransaction(batch.liabilityTransactions, transaction(line, kind, restored), restored)
-            if (uncertain) batch.reviewRequired = true
+            batch.reviewRequired = true
             left = round(left - restored)
           }
         }
@@ -303,7 +286,7 @@ export function buildTdsReport(input: TdsReportInput): TdsReportData {
       }
     }
 
-    // Credits released by reversals, or left after a linked reversal, still net
+    // Credits released by reversals still net
     // against liabilities in this ledger. They never cross a ledger boundary.
     for (const batch of openLiabilities()) consumeCredits(batch)
     creditsByLedger.set(ledgerId, creditSources)
