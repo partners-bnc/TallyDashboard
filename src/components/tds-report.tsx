@@ -59,30 +59,71 @@ function exportWorkbook(data: TdsReportData, companyName: string) {
   XLSX.writeFile(workbook, `tds-liability-clearance-${companyName.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${data.asOfDate}.xlsx`)
 }
 
-export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf, initialLedger = 'all' }: { orgId: string; companyId: string; companyName: string; data: TdsReportData | null; from: string; to: string; asOf: string; initialLedger?: string }) {
+export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf, initialLedger = 'all', lockLedger = false }: { orgId: string; companyId: string; companyName: string; data: TdsReportData | null; from: string; to: string; asOf: string; initialLedger?: string; lockLedger?: boolean }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [draftFrom, setDraftFrom] = useState(from)
   const [draftTo, setDraftTo] = useState(to)
   const [ledger, setLedger] = useState(initialLedger)
   const [status, setStatus] = useState('all')
+  const [selectedMonth, setSelectedMonth] = useState('all')
   const [showCleared, setShowCleared] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   
-  const visibleRows = useMemo(() => (data?.rows ?? []).filter((row) => (ledger === 'all' || row.ledgerId === ledger) && (status === 'all' || row.status === status) && (showCleared || !['CLEARED_ON_TIME', 'CLEARED_LATE'].includes(row.status)) && (!row.deductionMonth || (row.deductionMonth >= `${from.slice(0, 7)}-01` && row.deductionMonth <= `${to.slice(0, 7)}-01`))), [data, from, ledger, showCleared, status, to])
+  const visibleRows = useMemo(() => (data?.rows ?? []).filter((row) => {
+    const matchesLedger = ledger === 'all' || row.ledgerId === ledger
+    const matchesStatus = status === 'all' || row.status === status
+    const matchesCleared = showCleared || !['CLEARED_ON_TIME', 'CLEARED_LATE'].includes(row.status)
+    const matchesDateRange = !row.deductionMonth || (row.deductionMonth >= `${from.slice(0, 7)}-01` && row.deductionMonth <= `${to.slice(0, 7)}-01`)
+    const matchesMonth = selectedMonth === 'all'
+      ? true
+      : selectedMonth === 'opening'
+        ? !row.deductionMonth
+        : row.deductionMonth === selectedMonth
+    return matchesLedger && matchesStatus && matchesCleared && matchesDateRange && matchesMonth
+  }), [data, from, ledger, showCleared, status, to, selectedMonth])
+
   const selected = visibleRows.find((row) => row.id === selectedId) ?? null
   const applyDates = () => startTransition(() => router.push(`/dashboard/tds-report?${query({ org: orgId, company: companyId, from: draftFrom, to: draftTo, ledger: ledger === 'all' ? undefined : ledger })}`))
   
+  const monthOptions = useMemo(() => {
+    if (!data?.rows) return [{ label: 'All months', value: 'all' }]
+    const inRangeRows = data.rows.filter((row) => 
+      !row.deductionMonth || (row.deductionMonth >= `${from.slice(0, 7)}-01` && row.deductionMonth <= `${to.slice(0, 7)}-01`)
+    )
+    const uniqueMonths = Array.from(new Set(inRangeRows.map((row) => row.deductionMonth).filter(Boolean))) as string[]
+    uniqueMonths.sort()
+    const options = [{ label: 'All months', value: 'all' }]
+    if (inRangeRows.some((row) => !row.deductionMonth)) {
+      options.push({ label: 'Brought forward', value: 'opening' })
+    }
+    uniqueMonths.forEach((m) => {
+      const formatted = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(`${m.slice(0, 7)}-02T00:00:00Z`))
+      options.push({ label: formatted, value: m })
+    })
+    return options
+  }, [data?.rows, from, to])
+
   const ledgerOptions = [{ label: 'All TDS ledgers', value: 'all' }, ...(data?.ledgerOptions ?? []).map((item) => ({ label: item.label, value: item.id }))]
   const statusOptions = [{ label: 'All statuses', value: 'all' }, ...(['CLEARED_ON_TIME', 'CLEARED_LATE', 'REVERSED', 'PARTIALLY_CLEARED_OVERDUE', 'PARTIALLY_CLEARED_NOT_DUE', 'UNPAID_OVERDUE', 'PENDING_NOT_DUE', 'EXCESS_UNALLOCATED', 'REVIEW_REQUIRED'] as TdsStatus[]).map((item) => ({ label: statusLabel(item), value: item }))]
   const statusCounts = useMemo(() => visibleRows.reduce<Record<string, number>>((counts, row) => ({ ...counts, [row.status]: (counts[row.status] ?? 0) + 1 }), {}), [visibleRows])
-  const depositCoverage = data?.kpis.liabilityCreated ? Math.min(100, (data.kpis.deposited / data.kpis.liabilityCreated) * 100) : 0
+  const filteredKpis = useMemo(() => {
+    if (!data) return { liabilityCreated: 0, deposited: 0, remaining: 0, overdue: 0, excess: 0, coverage: 0 }
+    const liabilityCreated = visibleRows.reduce((sum, row) => sum + row.deducted, 0)
+    const deposited = visibleRows.reduce((sum, row) => sum + row.deposited, 0)
+    const remaining = visibleRows.reduce((sum, row) => sum + row.remaining, 0)
+    const overdue = visibleRows.filter((row) => ['UNPAID_OVERDUE', 'PARTIALLY_CLEARED_OVERDUE'].includes(row.status)).reduce((sum, row) => sum + row.remaining, 0)
+    const excess = visibleRows.reduce((sum, row) => sum + row.excess, 0)
+    const coverage = liabilityCreated ? Math.min(100, (deposited / liabilityCreated) * 100) : 0
+    return { liabilityCreated, deposited, remaining, overdue, excess, coverage }
+  }, [visibleRows, data])
   const reconciliationIssues = data?.reconciliation.filter((item) => !item.withinTolerance).length ?? 0
 
   return <AppShell topNav={<Header />} mobileNav={false} height="auto" contentPadding={4}>
     <VStack gap={8}>
       {/* Premium Header Box */}
       <Card padding={5} style={{ background: 'var(--paper)', border: '1px solid var(--rule)', boxShadow: 'var(--shadow-soft)' }}>
+<<<<<<< HEAD
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <VStack gap={1}>
             <Text type="supporting" weight="semibold">TAX COMPLIANCE · LIABILITY WORKBENCH</Text>
@@ -126,45 +167,132 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
             <VStack gap={0.5}>
               <Heading level={3}>Deduction Period</Heading>
               <Text type="supporting">Filter deduction months. Books and deposit matching remain fixed through {date(asOf)}.</Text>
+=======
+        <VStack gap={5}>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <VStack gap={1}>
+              <Text type="supporting" weight="semibold">TAX COMPLIANCE · LIABILITY WORKBENCH</Text>
+              <Heading level={1} style={{ fontSize: '28px', fontWeight: '700', letterSpacing: '-0.03em' }}>{companyName}</Heading>
+              <Text type="supporting">TDS Liability Clearance · Books reconstructed through {date(asOf)}</Text>
+>>>>>>> cf1f478741204894b5364dd31e579d0f04e315cd
             </VStack>
-          </HStack>
-          <div className="flex flex-wrap items-end gap-4">
-            {/* From Date */}
-            <div className="flex flex-col gap-1.5 w-full sm:w-[180px]">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deduction From</span>
-              <input 
-                type="date" 
-                value={isoDate(draftFrom)} 
-                max={isoDate(asOf)}
-                onChange={(e) => setDraftFrom(e.target.value)} 
-                className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
-              />
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => router.push(`/dashboard?${query({ org: orgId, company: companyId, from, to })}`)}
+                className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 transition-all font-semibold shadow-sm cursor-pointer"
+              >
+                <ArrowLeft size={16} />
+                Dashboard
+              </button>
+              <button 
+                disabled={!data}
+                onClick={() => data && exportWorkbook(data, companyName)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm transition-all font-semibold shadow-sm cursor-pointer"
+              >
+                <Download size={16} />
+                Export Workbook
+              </button>
             </div>
-            {/* To Date */}
-            <div className="flex flex-col gap-1.5 w-full sm:w-[180px]">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deduction To</span>
-              <input 
-                type="date" 
-                value={isoDate(draftTo)} 
-                max={isoDate(asOf)}
-                onChange={(e) => setDraftTo(e.target.value)} 
-                className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
-              />
+          </div>
+
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-5 flex flex-col gap-4">
+            <div className="flex flex-wrap items-end gap-4">
+              {/* From Date */}
+              <div className="flex flex-col gap-1.5 w-full sm:w-[150px]">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">From</span>
+                <input 
+                  type="date" 
+                  value={isoDate(draftFrom)} 
+                  max={isoDate(asOf)}
+                  onChange={(e) => setDraftFrom(e.target.value)} 
+                  className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                />
+              </div>
+              {/* To Date */}
+              <div className="flex flex-col gap-1.5 w-full sm:w-[150px]">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">To</span>
+                <input 
+                  type="date" 
+                  value={isoDate(draftTo)} 
+                  max={isoDate(asOf)}
+                  onChange={(e) => setDraftTo(e.target.value)} 
+                  className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                />
+              </div>
+              {/* Apply Button */}
+              <button 
+                type="button" 
+                disabled={isPending} 
+                onClick={applyDates}
+                className="h-10 px-4 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm transition-all font-semibold shadow-sm cursor-pointer w-full sm:w-auto"
+              >
+                {isPending ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <CalendarDays size={16} />
+                )}
+                Apply Period
+              </button>
+
+              <div className="hidden lg:block h-8 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 self-center" />
+
+              {/* Ledger */}
+              <div className="flex flex-col gap-1.5 w-full sm:w-[200px]">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ledger</span>
+                <select 
+                  value={ledger} 
+                  disabled={lockLedger}
+                  onChange={(e) => setLedger(e.target.value)}
+                  className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {ledgerOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Clearance Status */}
+              <div className="flex flex-col gap-1.5 w-full sm:w-[160px]">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clearance Status</span>
+                <select 
+                  value={status} 
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
+                >
+                  {statusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Month */}
+              <div className="flex flex-col gap-1.5 w-full sm:w-[160px]">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Month</span>
+                <select 
+                  value={selectedMonth} 
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
+                >
+                  {monthOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Include Cleared Rows */}
+              <label className="flex items-center gap-2 pb-2 cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={showCleared} 
+                  onChange={(e) => setShowCleared(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Include cleared</span>
+              </label>
             </div>
-            {/* Apply Button */}
-            <button 
-              type="button" 
-              disabled={isPending} 
-              onClick={applyDates}
-              className="h-10 px-5 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm transition-all font-semibold shadow-sm cursor-pointer w-full sm:w-auto min-w-[140px]"
-            >
-              {isPending ? (
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <CalendarDays size={16} />
-              )}
-              Apply Period
-            </button>
+            <div className="text-[11px] text-slate-450 dark:text-slate-500 italic">
+              Books and deposit matching remain fixed through {date(asOf)}.
+            </div>
           </div>
         </VStack>
       </Card>
@@ -187,7 +315,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                   <Text type="supporting" weight="semibold">LIABILITY CREATED</Text>
                   <TrendingUp className="text-blue-500" size={18} />
                 </HStack>
-                <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(data.kpis.liabilityCreated)}</Heading>
+                <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(filteredKpis.liabilityCreated)}</Heading>
                 <Text type="supporting">Total due in the selected period</Text>
               </VStack>
             </Card>
@@ -198,8 +326,8 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                   <Text type="supporting" weight="semibold">DEPOSITED</Text>
                   <ShieldCheck className="text-green-500" size={18} />
                 </HStack>
-                <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(data.kpis.deposited)}</Heading>
-                <Text type="supporting">{depositCoverage.toFixed(1)}% of liability funded</Text>
+                <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(filteredKpis.deposited)}</Heading>
+                <Text type="supporting">{filteredKpis.coverage.toFixed(1)}% of liability funded</Text>
               </VStack>
             </Card>
             {/* Outstanding */}
@@ -207,9 +335,9 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
               <VStack gap={2}>
                 <HStack justify="between" align="center">
                   <Text type="supporting" weight="semibold">OUTSTANDING</Text>
-                  <AlertCircle className={data.kpis.remaining > 0 ? 'text-amber-500' : 'text-slate-400'} size={18} />
+                  <AlertCircle className={filteredKpis.remaining > 0 ? 'text-amber-500' : 'text-slate-400'} size={18} />
                 </HStack>
-                <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(data.kpis.remaining)}</Heading>
+                <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(filteredKpis.remaining)}</Heading>
                 <Text type="supporting">Not yet matched to deposits</Text>
               </VStack>
             </Card>
@@ -218,9 +346,9 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
               <VStack gap={2}>
                 <HStack justify="between" align="center">
                   <Text type="supporting" weight="semibold">OVERDUE EXPOSURE</Text>
-                  <AlertTriangle className={data.kpis.overdue > 0 ? 'text-red-500' : 'text-slate-400'} size={18} />
+                  <AlertTriangle className={filteredKpis.overdue > 0 ? 'text-red-500' : 'text-slate-400'} size={18} />
                 </HStack>
-                <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(data.kpis.overdue)}</Heading>
+                <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(filteredKpis.overdue)}</Heading>
                 <Text type="supporting">Past the statutory due date</Text>
               </VStack>
             </Card>
@@ -235,7 +363,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                 </div>
                 <VStack gap={0.5}>
                   <Text type="supporting" weight="semibold">CLEARED ON TIME</Text>
-                  <Heading level={3} style={{ fontSize: '20px', fontWeight: '700' }}>{statusCounts.CLEARED_ON_TIME ?? 0} months</Heading>
+                  <Heading level={3} style={{ fontSize: '20px', fontWeight: '700' }}>{statusCounts.CLEARED_ON_TIME ?? 0} {(statusCounts.CLEARED_ON_TIME ?? 0) === 1 ? 'month' : 'months'}</Heading>
                 </VStack>
               </HStack>
             </Card>
@@ -246,7 +374,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                 </div>
                 <VStack gap={0.5}>
                   <Text type="supporting" weight="semibold">CLEARED LATE</Text>
-                  <Heading level={3} style={{ fontSize: '20px', fontWeight: '700' }}>{statusCounts.CLEARED_LATE ?? 0} months</Heading>
+                  <Heading level={3} style={{ fontSize: '20px', fontWeight: '700' }}>{statusCounts.CLEARED_LATE ?? 0} {(statusCounts.CLEARED_LATE ?? 0) === 1 ? 'month' : 'months'}</Heading>
                 </VStack>
               </HStack>
             </Card>
@@ -257,7 +385,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                 </div>
                 <VStack gap={0.5}>
                   <Text type="supporting" weight="semibold">EXCESS DEPOSITS</Text>
-                  <Heading level={3} style={{ fontSize: '20px', fontWeight: '700' }}>{amount(data.kpis.excess)}</Heading>
+                  <Heading level={3} style={{ fontSize: '20px', fontWeight: '700' }}>{amount(filteredKpis.excess)}</Heading>
                 </VStack>
               </HStack>
             </Card>
@@ -276,58 +404,6 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
             </Card>
           </Grid>
         </VStack>
-
-        {/* Refine Ledger Panel */}
-        <div style={{ paddingLeft: '12px', paddingRight: '12px' }}>
-          <Card padding={5} style={{ background: 'var(--paper)', border: '1px solid var(--rule)', boxShadow: 'var(--shadow-soft)' }}>
-            <VStack gap={4}>
-              <VStack gap={1}>
-                <Heading level={3}>Refine the Ledger</Heading>
-                <Text type="supporting">Showing {visibleRows.length} of {data.rows.length} monthly positions.</Text>
-              </VStack>
-              <div className="flex flex-wrap items-center gap-6">
-                {/* Ledger */}
-                <div className="flex flex-col gap-1.5 w-full sm:w-[240px]">
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ledger</span>
-                  <select 
-                    value={ledger} 
-                    onChange={(e) => setLedger(e.target.value)}
-                    className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
-                  >
-                    {ledgerOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Clearance Status */}
-                <div className="flex flex-col gap-1.5 w-full sm:w-[200px]">
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Clearance Status</span>
-                  <select 
-                    value={status} 
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="h-10 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer"
-                  >
-                    {statusOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Include Cleared Rows */}
-                <label className="flex items-center gap-2 mt-5 cursor-pointer select-none">
-                  <input 
-                    type="checkbox" 
-                    checked={showCleared} 
-                    onChange={(e) => setShowCleared(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Include cleared rows</span>
-                </label>
-              </div>
-            </VStack>
-          </Card>
-        </div>
 
         {/* Monthly Clearance Table */}
         <VStack gap={4} style={{ paddingLeft: '12px', paddingRight: '12px' }}>
