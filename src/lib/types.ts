@@ -16,10 +16,7 @@ export interface Database {
       tb_company_sync_state: Table<{ company_id: string; last_catalog_seen_at: string | null; last_ledger_sync_at: string | null; last_voucher_sync_at: string | null; last_error: string | null; history_baseline_date: string | null; history_earliest_voucher_date: string | null; history_latest_voucher_date: string | null; history_reconciliation_status: string | null; history_reconciled_at: string | null; verification_as_of_date: string | null; verification_status: string | null; verification_completed_at: string | null; updated_at: string }>
       tb_tally_verification_snapshots: Table<{ id: string; org_id: string; company_id: string; ledger_id: string; as_of_date: string; closing_balance: number; synced_at: string }>
       tb_tally_trial_balance_snapshots: Table<{ id: string; org_id: string; company_id: string; as_of_date: string; debit_total: number; credit_total: number; rows: Json; synced_at: string }>
-      tds_ledger_mappings: Table<{ id: string; org_id: string; company_id: string; ledger_id: string; tds_type: string; section_code: string | null; is_payable_ledger: boolean; rounding_tolerance: number; active_from: string; active_to: string | null; due_rule_code: string; liability_voucher_types: string[]; deposit_voucher_types: string[]; journal_treatment: string; created_at: string; updated_at: string }>
-      tds_due_date_rules: Table<{ rule_code: string; deduction_month: number; due_month_offset: number; due_day: number; effective_from: string; effective_to: string | null; created_at: string }>
-      tds_due_date_overrides: Table<{ id: string; org_id: string; company_id: string; ledger_id: string | null; deduction_month: string; due_date: string; reason: string; created_at: string }>
-      tds_transaction_overrides: Table<{ voucher_ledger_entry_id: string; org_id: string; company_id: string; ledger_id: string; classification: string; related_voucher_ledger_entry_id: string | null; note: string; created_at: string; updated_at: string }>
+      tds_ledger_mappings: Table<{ id: string; org_id: string; company_id: string; ledger_id: string; tds_type: string; section_code: string | null; is_payable_ledger: boolean; rounding_tolerance: number; active_from: string; active_to: string | null; liability_voucher_types: string[]; deposit_voucher_types: string[]; journal_treatment: string; created_at: string; updated_at: string }>
       compliance_mapping_profiles: Table<{ id: string; org_id: string; company_id: string; compliance_type: string; status: 'draft' | 'complete'; confirmed_by: string | null; confirmed_at: string | null; created_at: string; updated_at: string }>
     }
     Views: {
@@ -54,7 +51,7 @@ export interface Database {
       }
       tb_tds_source_lines: {
         Args: { target_company: string; target_as_of: string }
-        Returns: { mapping_id: string; org_id: string; company_id: string; ledger_id: string; ledger_name: string; tds_type: string; section_code: string | null; rounding_tolerance: number; journal_treatment: string; liability_voucher_types: string[]; deposit_voucher_types: string[]; voucher_ledger_entry_id: string; voucher_id: string; voucher_date: string; voucher_type: string; voucher_number: string | null; party_ledger_name: string | null; narration: string | null; line_number: number; raw_signed_amount: number; override_classification: string | null; related_voucher_ledger_entry_id: string | null; override_note: string | null }[]
+        Returns: { mapping_id: string; org_id: string; company_id: string; ledger_id: string; ledger_name: string; tds_type: string; section_code: string | null; rounding_tolerance: number; journal_treatment: string; liability_voucher_types: string[]; deposit_voucher_types: string[]; voucher_ledger_entry_id: string; voucher_id: string; voucher_date: string; voucher_type: string; voucher_number: string | null; party_ledger_name: string | null; narration: string | null; line_number: number; raw_signed_amount: number }[]
       }
       tb_save_tds_compliance_mapping: {
         Args: { target_org: string; target_company: string; selected_ledger_ids: string[] }
@@ -209,7 +206,7 @@ export type TdsStatus =
   | 'REVIEW_REQUIRED'
 
 export type TdsBooksStatus = 'CLEARED' | 'PARTIALLY_CLEARED' | 'OUTSTANDING' | 'EXCESS_UNALLOCATED' | 'REVIEW_REQUIRED'
-export type TdsClassification = 'DEDUCTION' | 'REVERSAL' | 'ADJUSTMENT' | 'DEPOSIT' | 'PAYMENT_REVERSAL' | 'EXCLUDE'
+export type TdsClassification = 'DEDUCTION' | 'REVERSAL' | 'ADJUSTMENT' | 'DEPOSIT' | 'PAYMENT_REVERSAL'
 
 export type TdsAuditTransaction = {
   id: string

@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { buildTdsReport, type TdsReportInput, type TdsSourceLine } from '@/lib/tds'
 
-const baseLine = (overrides: Partial<TdsSourceLine> = {}): TdsSourceLine => ({ companyId: 'company-1', mappingId: 'mapping-1', ledgerId: 'ledger-1', ledgerName: 'TDS on Contract', tdsType: 'Contractor', sectionCode: '194C', roundingTolerance: 1, journalTreatment: 'MAPPED_BY_SIGN', liabilityVoucherTypes: ['Purchase', 'Journal'], depositVoucherTypes: ['Payment'], voucherLedgerEntryId: 'line-1', voucherDate: '2026-04-10', voucherType: 'Purchase', voucherNumber: '1', party: 'Vendor', narration: null, rawSignedAmount: 1000, overrideClassification: null, relatedVoucherLedgerEntryId: null, overrideNote: null, ...overrides })
-const dueRules = Array.from({ length: 12 }, (_, index) => ({ ruleCode: 'STANDARD', deductionMonth: index + 1, dueMonthOffset: 1, dueDay: 7, effectiveFrom: '1900-01-01', effectiveTo: null }))
+const baseLine = (overrides: Partial<TdsSourceLine> = {}): TdsSourceLine => ({ companyId: 'company-1', mappingId: 'mapping-1', ledgerId: 'ledger-1', ledgerName: 'TDS on Contract', tdsType: 'Contractor', sectionCode: '194C', roundingTolerance: 1, journalTreatment: 'MAPPED_BY_SIGN', liabilityVoucherTypes: ['Purchase', 'Journal'], depositVoucherTypes: ['Payment'], voucherLedgerEntryId: 'line-1', voucherDate: '2026-04-10', voucherType: 'Purchase', voucherNumber: '1', party: 'Vendor', narration: null, rawSignedAmount: 1000, ...overrides })
 
 const report = (lines: TdsSourceLine[], asOfDate = '2026-05-10', companyId = 'company-1') => {
   const scoped = lines.filter((line) => !line.companyId || line.companyId === companyId)
   const ledgerIds = [...new Set(scoped.map((line) => line.ledgerId))]
-  return buildTdsReport({ companyId, asOfDate, from: '2025-04-01', to: '2027-03-31', lines, ledgerBalances: ledgerIds.map((ledgerId) => ({ ledgerId, openingBalance: 0, closingBalance: scoped.filter((line) => line.ledgerId === ledgerId).reduce((sum, line) => sum + line.rawSignedAmount, 0) })), dueRules, dueOverrides: [] } satisfies TdsReportInput)
+  return buildTdsReport({ companyId, asOfDate, from: '2025-04-01', to: '2027-03-31', lines, ledgerBalances: ledgerIds.map((ledgerId) => ({ ledgerId, openingBalance: 0, closingBalance: scoped.filter((line) => line.ledgerId === ledgerId).reduce((sum, line) => sum + line.rawSignedAmount, 0) })) } satisfies TdsReportInput)
 }
 
 describe('buildTdsReport', () => {
@@ -22,14 +21,14 @@ describe('buildTdsReport', () => {
     expect(data.rows[0]).toMatchObject({ status: 'CLEARED_LATE', remaining: 0, delayDays: 3 })
   })
 
-  it('uses a linked liability reversal against its linked batch', () => {
+  it('applies liability reversals to the newest compatible liability first', () => {
     const data = report([
       baseLine({ voucherLedgerEntryId: 'april', rawSignedAmount: 500 }),
       baseLine({ voucherLedgerEntryId: 'may', voucherDate: '2026-05-10', rawSignedAmount: 700 }),
-      baseLine({ voucherLedgerEntryId: 'reversal', voucherDate: '2026-05-12', rawSignedAmount: -300, relatedVoucherLedgerEntryId: 'april' }),
+      baseLine({ voucherLedgerEntryId: 'reversal', voucherDate: '2026-05-12', rawSignedAmount: -900 }),
     ], '2026-06-10')
-    expect(data.rows.find((row) => row.deductionMonth === '2026-04-01')).toMatchObject({ reversed: 300, remaining: 200 })
-    expect(data.rows.find((row) => row.deductionMonth === '2026-05-01')).toMatchObject({ reversed: 0, remaining: 700 })
+    expect(data.rows.find((row) => row.deductionMonth === '2026-04-01')).toMatchObject({ reversed: 200, remaining: 300 })
+    expect(data.rows.find((row) => row.deductionMonth === '2026-05-01')).toMatchObject({ reversed: 700, remaining: 0 })
   })
 
   it('uses an unlinked liability reversal against the newest liability without review', () => {
@@ -61,19 +60,24 @@ describe('buildTdsReport', () => {
     const data = report([
       baseLine({ voucherLedgerEntryId: 'liability' }),
       baseLine({ voucherLedgerEntryId: 'payment', voucherDate: '2026-05-06', voucherType: 'Payment', rawSignedAmount: -1000 }),
-      baseLine({ voucherLedgerEntryId: 'reversal', voucherDate: '2026-05-08', rawSignedAmount: -400, relatedVoucherLedgerEntryId: 'liability' }),
+      baseLine({ voucherLedgerEntryId: 'reversal', voucherDate: '2026-05-08', rawSignedAmount: -400 }),
     ])
     expect(data.rows.find((row) => row.deductionMonth === '2026-04-01')).toMatchObject({ totalDue: 600, deposited: 600, remaining: 0 })
     expect(data.kpis.excess).toBe(400)
   })
 
-  it('undoes a linked payment allocation newest-first without review', () => {
+  it('undoes automatic payment allocations from the newest deposit first', () => {
     const data = report([
       baseLine({ voucherLedgerEntryId: 'liability' }),
-      baseLine({ voucherLedgerEntryId: 'payment', voucherDate: '2026-05-06', voucherType: 'Payment', rawSignedAmount: -1000 }),
-      baseLine({ voucherLedgerEntryId: 'payment-reversal', voucherDate: '2026-05-08', voucherType: 'Payment', rawSignedAmount: 300, relatedVoucherLedgerEntryId: 'payment' }),
+      baseLine({ voucherLedgerEntryId: 'payment-1', voucherDate: '2026-05-05', voucherType: 'Payment', rawSignedAmount: -600 }),
+      baseLine({ voucherLedgerEntryId: 'payment-2', voucherDate: '2026-05-06', voucherType: 'Payment', rawSignedAmount: -400 }),
+      baseLine({ voucherLedgerEntryId: 'payment-reversal', voucherDate: '2026-05-08', voucherType: 'Payment', rawSignedAmount: 300 }),
     ])
-    expect(data.rows[0]).toMatchObject({ deposited: 700, remaining: 300, status: 'PARTIALLY_CLEARED_OVERDUE' })
+    expect(data.rows[0]).toMatchObject({ deposited: 700, remaining: 300, status: 'REVIEW_REQUIRED' })
+    expect(data.rows[0].depositTransactions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'payment-1', amount: 600 }),
+      expect.objectContaining({ id: 'payment-2', amount: 100 }),
+    ]))
   })
 
   it('marks only restored allocations from an unlinked payment reversal for review', () => {
@@ -88,6 +92,23 @@ describe('buildTdsReport', () => {
   it('creates a positive review liability for an unexplained payment reversal remainder', () => {
     const data = report([baseLine({ voucherLedgerEntryId: 'payment-reversal', voucherType: 'Payment', rawSignedAmount: 250 })])
     expect(data.rows[0]).toMatchObject({ deducted: 250, remaining: 250, status: 'REVIEW_REQUIRED' })
+  })
+
+  it('uses the seventh of the following month for April through February deductions', () => {
+    const onDueDate = report([baseLine({ voucherDate: '2026-04-10' })], '2026-05-07')
+    const afterDueDate = report([baseLine({ voucherDate: '2026-04-10' })], '2026-05-08')
+    expect(onDueDate.rows[0]).toMatchObject({ dueDate: '2026-05-07', status: 'PENDING_NOT_DUE' })
+    expect(afterDueDate.rows[0]).toMatchObject({ dueDate: '2026-05-07', status: 'UNPAID_OVERDUE' })
+  })
+
+  it('uses 30 April as the due date for March deductions', () => {
+    const data = report([baseLine({ voucherDate: '2026-03-15' })], '2026-04-30')
+    expect(data.rows[0]).toMatchObject({ dueDate: '2026-04-30', status: 'PENDING_NOT_DUE' })
+  })
+
+  it('rolls December deductions into a 7 January due date', () => {
+    const data = report([baseLine({ voucherDate: '2026-12-20' })], '2027-01-08')
+    expect(data.rows[0]).toMatchObject({ dueDate: '2027-01-07', status: 'UNPAID_OVERDUE' })
   })
 
   it('uses REVERSED only when the full liability is eliminated without payment', () => {
@@ -144,7 +165,7 @@ describe('Medivation Jammu regression fixture', () => {
       baseLine({ ...salary, voucherLedgerEntryId: 'salary-current', voucherDate: '2027-02-28', rawSignedAmount: 900 }),
       baseLine({ ...salary, voucherLedgerEntryId: 'salary-payment', voucherDate: '2027-03-05', voucherType: 'Payment', rawSignedAmount: -900 }),
       baseLine({ ...rent, voucherLedgerEntryId: 'rent-current', voucherDate: '2027-01-31', rawSignedAmount: 750 }),
-      baseLine({ ...rent, voucherLedgerEntryId: 'rent-reversal', voucherDate: '2027-02-02', rawSignedAmount: -750, relatedVoucherLedgerEntryId: 'rent-current' }),
+      baseLine({ ...rent, voucherLedgerEntryId: 'rent-reversal', voucherDate: '2027-02-02', rawSignedAmount: -750 }),
     ], '2027-03-31')
 
     expect(data.ledgerPositions.find((item) => item.ledgerId === professional.ledgerId)?.outstanding).toBe(3406.2)
