@@ -9,7 +9,8 @@ export interface Database {
       tb_organizations: Table<{ id: string; name: string; created_at: string }>
       tb_org_members: Table<{ user_id: string; org_id: string; role: string; created_at: string }>
       tb_companies: Table<{ id: string; org_id: string; name: string; tally_company_guid: string; last_successful_sync_at: string | null; last_sync_status: string | null; last_sync_error: string | null; is_active: boolean; updated_at: string }>
-      tb_ledgers: Table<{ id: string; org_id: string; company_id: string; name: string; parent_name: string | null; opening_balance: number | null; closing_balance: number | null; is_deleted: boolean }>
+      tb_ledgers: Table<{ id: string; org_id: string; company_id: string; name: string; parent_name: string | null; parent_group_id: string | null; opening_balance: number | null; closing_balance: number | null; is_deleted: boolean }>
+      tb_ledger_groups: Table<{ id: string; org_id: string; company_id: string; name: string; parent_name: string | null; parent_group_id: string | null; is_deleted: boolean }>
       tb_vouchers: Table<{ id: string; company_id: string; voucher_date: string; effective_date: string | null; voucher_type: string; voucher_number: string | null; party_ledger_name: string | null; reference: string | null; narration: string | null; is_cancelled: boolean; is_optional: boolean; is_deleted: boolean }>
       tb_voucher_ledger_entries: Table<{ id: string; voucher_id: string; company_id: string; line_number: number; ledger_id: string | null; ledger_name: string; amount: number; is_deemed_positive: boolean | null; is_party_ledger: boolean | null; is_billwise: boolean | null }>
       tb_company_sync_state: Table<{ company_id: string; last_catalog_seen_at: string | null; last_ledger_sync_at: string | null; last_voucher_sync_at: string | null; last_error: string | null; history_baseline_date: string | null; history_earliest_voucher_date: string | null; history_latest_voucher_date: string | null; history_reconciliation_status: string | null; history_reconciled_at: string | null; verification_as_of_date: string | null; verification_status: string | null; verification_completed_at: string | null; updated_at: string }>
@@ -19,6 +20,7 @@ export interface Database {
       tds_due_date_rules: Table<{ rule_code: string; deduction_month: number; due_month_offset: number; due_day: number; effective_from: string; effective_to: string | null; created_at: string }>
       tds_due_date_overrides: Table<{ id: string; org_id: string; company_id: string; ledger_id: string | null; deduction_month: string; due_date: string; reason: string; created_at: string }>
       tds_transaction_overrides: Table<{ voucher_ledger_entry_id: string; org_id: string; company_id: string; ledger_id: string; classification: string; related_voucher_ledger_entry_id: string | null; note: string; created_at: string; updated_at: string }>
+      compliance_mapping_profiles: Table<{ id: string; org_id: string; company_id: string; compliance_type: string; status: 'draft' | 'complete'; confirmed_by: string | null; confirmed_at: string | null; created_at: string; updated_at: string }>
     }
     Views: {
       tb_ledger_voucher_lines: View<{ company_id: string | null; ledger_id: string | null; ledger_name: string | null; voucher_ledger_entry_id: string | null; line_number: number | null; voucher_id: string | null; voucher_date: string | null; voucher_type: string | null; voucher_number: string | null; particulars: string | null; debit_amount: number | null; credit_amount: number | null; running_balance: number | null }>
@@ -53,6 +55,10 @@ export interface Database {
       tb_tds_source_lines: {
         Args: { target_company: string; target_as_of: string }
         Returns: { mapping_id: string; org_id: string; company_id: string; ledger_id: string; ledger_name: string; tds_type: string; section_code: string | null; rounding_tolerance: number; journal_treatment: string; liability_voucher_types: string[]; deposit_voucher_types: string[]; voucher_ledger_entry_id: string; voucher_id: string; voucher_date: string; voucher_type: string; voucher_number: string | null; party_ledger_name: string | null; narration: string | null; line_number: number; raw_signed_amount: number; override_classification: string | null; related_voucher_ledger_entry_id: string | null; override_note: string | null }[]
+      }
+      tb_save_tds_compliance_mapping: {
+        Args: { target_org: string; target_company: string; selected_ledger_ids: string[] }
+        Returns: Json
       }
     }
   }
@@ -267,6 +273,44 @@ export type TdsReportData = {
   ledgerOptions: { id: string; label: string }[]
   ledgerPositions: { ledgerId: string; ledgerName: string; outstanding: number; excess: number }[]
   reconciliation: { ledgerId: string; ledgerName: string; expected: number; reconstructed: number; difference: number; withinTolerance: boolean }[]
+}
+
+export type TdsMappingGroup = {
+  groupId: string
+  name: string
+  parentName: string | null
+  parentGroupId: string | null
+  directLedgerCount: number
+  isTdsRoot: boolean
+}
+
+export type TdsMappingLedger = {
+  ledgerId: string
+  ledgerName: string
+  parentName: string
+  parentGroupId: string | null
+  selected: boolean
+}
+
+export type TdsMappingCompany = {
+  companyId: string
+  companyName: string
+  configured: boolean
+  tdsGroupFound: boolean
+  groups: TdsMappingGroup[]
+  ledgers: TdsMappingLedger[]
+}
+
+export type TdsComplianceMappingData = {
+  orgId: string
+  userId: string
+  company: TdsMappingCompany
+}
+
+export type SaveTdsComplianceMappingPayload = {
+  orgId: string
+  companyId: string
+  selectedLedgerIds: string[]
 }
 
 

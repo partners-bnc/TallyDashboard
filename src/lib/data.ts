@@ -59,19 +59,29 @@ export async function getDashboardData(companyId: string, from?: string, to?: st
   const sync = { status: syncError ? 'error' : lastSyncedAt ? 'synced' : null, lastSyncedAt, error: syncError }
   if (!history.isAvailable) return { kpis: { totalVouchers: 0, debit: 0, credit: 0, netMovement: 0 }, activity: [], voucherTypes: [], recentVouchers: [], ledgers: (ledgersResult.data ?? []) as Ledger[], sync, history }
 
-  const [vouchersResult, linesResult, movementTotalsResult, monthlyMovementResult, voucherTypesResult] = await Promise.all([
+  const [vouchersResult, movementTotalsResult, monthlyMovementResult, voucherTypesResult] = await Promise.all([
     supabase.from('tb_vouchers').select('id,company_id,voucher_date,voucher_type,voucher_number,party_ledger_name,narration,is_cancelled,is_optional,is_deleted').eq('company_id', companyId).eq('is_cancelled', false).eq('is_optional', false).eq('is_deleted', false).not('voucher_type', 'ilike', '% Order').gte('voucher_date', from ?? history.baselineDate!).lte('voucher_date', to ?? '2999-12-31').order('voucher_date', { ascending: false }).limit(8),
-    supabase.from('tb_ledger_voucher_lines').select('company_id,ledger_id,ledger_name,voucher_ledger_entry_id,line_number,voucher_id,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,running_balance').eq('company_id', companyId).gte('voucher_date', from ?? history.baselineDate!).lte('voucher_date', to ?? '2999-12-31').order('voucher_date', { ascending: false }).limit(1000),
     supabase.rpc('tb_dashboard_movement_totals', { target_company: companyId, from_date: from ?? history.baselineDate, to_date: to ?? null }),
     supabase.rpc('tb_dashboard_monthly_movement', { target_company: companyId, from_date: from ?? history.baselineDate, to_date: to ?? null }),
     supabase.rpc('tb_dashboard_voucher_type_counts', { target_company: companyId, from_date: from ?? history.baselineDate, to_date: to ?? null }),
   ])
-  if (vouchersResult.error || linesResult.error || movementTotalsResult.error || monthlyMovementResult.error || voucherTypesResult.error) throw new Error('Could not load dashboard movement')
-  const lines = (linesResult.data ?? []) as VoucherLine[]
+  const movementError = vouchersResult.error ?? movementTotalsResult.error ?? monthlyMovementResult.error ?? voucherTypesResult.error
+  if (movementError) throw new Error(`Could not load dashboard movement: ${movementError.message}`)
+  const recentVoucherIds = (vouchersResult.data ?? []).map((voucher) => voucher.id)
+  const recentLinesResult = recentVoucherIds.length
+    ? await supabase
+        .from('tb_voucher_ledger_entries')
+        .select('voucher_id,amount')
+        .eq('company_id', companyId)
+        .in('voucher_id', recentVoucherIds)
+    : { data: [], error: null }
+  if (recentLinesResult.error) throw new Error(`Could not load recent voucher amounts: ${recentLinesResult.error.message}`)
   const totals = movementTotalsResult.data?.[0]
   const periods = new Map((monthlyMovementResult.data ?? []).map((period) => [period.period, { debit: asNumber(period.debit_total), credit: asNumber(period.credit_total) }]))
   const lineAmounts = new Map<string, number>()
-  for (const line of lines) lineAmounts.set(line.voucher_id ?? '', (lineAmounts.get(line.voucher_id ?? '') ?? 0) + asNumber(line.debit_amount) + asNumber(line.credit_amount))
+  for (const line of recentLinesResult.data ?? []) {
+    lineAmounts.set(line.voucher_id, (lineAmounts.get(line.voucher_id) ?? 0) + Math.abs(asNumber(line.amount)))
+  }
   return {
     kpis: { totalVouchers: totals?.voucher_count ?? 0, debit: asNumber(totals?.debit_total), credit: asNumber(totals?.credit_total), netMovement: asNumber(totals?.debit_total) - asNumber(totals?.credit_total) },
     activity: [...periods.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-12).map(([label, values]) => ({ label, ...values })),
