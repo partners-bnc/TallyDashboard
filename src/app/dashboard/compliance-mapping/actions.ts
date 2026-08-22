@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { auth } from '@/lib/auth/server'
+import { createNeonDataApiClient } from '@/lib/neon/data-api'
 import type { SaveTdsComplianceMappingPayload } from '@/lib/types'
 
 const payloadSchema = z.object({
@@ -23,11 +24,12 @@ export async function saveTdsComplianceMapping(
   const parsed = payloadSchema.safeParse(rawPayload)
   if (!parsed.success) return { ok: false, error: 'The mapping contains invalid or incomplete data.' }
 
-  const supabase = await createSupabaseServerClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) return { ok: false, error: 'Your session has expired. Please sign in again.' }
+  const client = createNeonDataApiClient()
+  const { data: session, error: sessionError } = await auth.getSession()
+  const user = session?.user
+  if (sessionError || !user) return { ok: false, error: 'Your session has expired. Please sign in again.' }
 
-  const { data: membership, error: membershipError } = await supabase
+  const { data: membership, error: membershipError } = await client
     .from('tb_org_members')
     .select('org_id')
     .eq('org_id', parsed.data.orgId)
@@ -35,7 +37,7 @@ export async function saveTdsComplianceMapping(
     .maybeSingle()
   if (membershipError || !membership) return { ok: false, error: 'You do not have access to this organization.' }
 
-  const { error } = await supabase.rpc('tb_save_tds_compliance_mapping', {
+  const { error } = await client.rpc('tb_save_tds_compliance_mapping', {
     target_org: parsed.data.orgId,
     target_company: parsed.data.companyId,
     selected_ledger_ids: parsed.data.selectedLedgerIds,

@@ -10,18 +10,17 @@ npm install
 npm run dev
 ```
 
-Set only these public variables in `.env.local`:
+Configure the values documented in `.env.example`. The browser-visible value is:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_NEON_DATA_API_URL`
 
-The publishable key is safe for browser use because every `tb_*` table is protected by Supabase RLS. Never add a service-role key to this project.
+`NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` are server-side Auth configuration. The dashboard has no runtime database credential or Electron ingestion endpoint.
 
 ## Data and security model
 
-The dashboard authenticates with Supabase SSR cookies and refreshes sessions in `src/middleware.ts`. Every server query is made through the authenticated SSR client. Organization membership and company scope are resolved before accounting data is requested. The UI does not expose insert, update, or delete operations.
+The dashboard authenticates with Neon Managed Auth through `src/proxy.ts`. Every Data API query carries the user JWT, and PostgreSQL RLS remains the read-authorization boundary. Organization membership and company scope are resolved before accounting data is requested.
 
-Apply `supabase/migrations/20260727000000_dashboard_read_contracts.sql` after the existing TallyBridge schema migration. The security-invoker functions are for future database-side aggregation; they preserve the existing RLS boundary and exclude cancelled/deleted vouchers through the canonical ledger view semantics.
+Electron sync invokes `tb_sync_accounting_data(payload)` through its authenticated Neon client. The public RPC derives tenancy from `auth.uid()` and delegates to private, security-definer ingestion logic, so each company batch is atomic without granting direct accounting-table writes. See `database/neon/README.md` for database restore and cutover instructions.
 
 ## Design foundation
 
@@ -48,6 +47,6 @@ npm test
 npm run build
 ```
 
-## Known integration boundary
+## Migration status
 
-The current dashboard query façade uses bounded, RLS-filtered reads to make the shell usable against the existing schema. For high-volume production data, wire `src/lib/data.ts` to the provided aggregate RPCs and add a cursor-based `/api/ledger` handler for drawer pages. The migration and UI already separate those concerns so no client-side service key or unbounded history fetch is needed.
+The application code is Neon-ready, and the production Managed Auth and Data API endpoints are configured. Production cutover still requires restoring the final write-frozen archive, creating the replacement Managed Auth user, confirming password sign-in, remapping the explicit returned user UUID and matching email, and running the supplied database verification scripts.

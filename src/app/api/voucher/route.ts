@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createNeonDataApiClient } from '@/lib/neon/data-api'
 import { buildVoucherDetailEntries } from '@/lib/voucher-detail'
 
 export async function GET(request: NextRequest) {
@@ -11,16 +11,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'company and voucher are required' }, { status: 400 })
   }
 
-  const supabase = await createSupabaseServerClient()
+  const client = createNeonDataApiClient()
   const [voucherResult, entriesResult] = await Promise.all([
-    supabase
+    client
       .from('tb_vouchers')
       .select('id,company_id,voucher_date,effective_date,voucher_type,voucher_number,party_ledger_name,reference,narration,is_cancelled,is_optional,is_deleted')
       .eq('id', voucherId)
       .eq('company_id', companyId)
       .eq('is_deleted', false)
       .maybeSingle(),
-    supabase
+    client
       .from('tb_voucher_ledger_entries')
       .select('id,voucher_id,company_id,line_number,ledger_name,amount,is_deemed_positive,is_party_ledger,is_billwise')
       .eq('voucher_id', voucherId)
