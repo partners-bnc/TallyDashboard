@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('@/lib/neon/data-api', () => ({ createNeonDataApiClient: vi.fn() }))
+
 import { groupTrialBalanceRows } from './data'
 
 describe('groupTrialBalanceRows', () => {

@@ -4,8 +4,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { X, Database, BarChart3, Image as ImageIcon, Calculator, User, Settings, CreditCard, LogOut } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { createBrowserClient } from '@supabase/ssr'
-import { getPublicEnv } from '@/lib/env'
+import { authClient } from '@/lib/auth/client'
 
 
 
@@ -99,9 +98,7 @@ const SidebarInner = ({ isOpen, onClose }: SidebarProps) => {
                               if (item.name === 'Logout') {
                                 e.preventDefault()
                                 try {
-                                  const env = getPublicEnv()
-                                  const supabase = createBrowserClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-                                  await supabase.auth.signOut()
+                                  await authClient.signOut()
                                   await fetch('/auth/signout', { method: 'POST' })
                                 } catch (err) {
                                   // Ignore

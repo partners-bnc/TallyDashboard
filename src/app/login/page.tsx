@@ -2,8 +2,7 @@
 
 import { FormEvent, useState } from 'react'
 import Link from 'next/link'
-import { createBrowserClient } from '@supabase/ssr'
-import { getPublicEnv } from '@/lib/env'
+import { authClient } from '@/lib/auth/client'
 
 import illustration from '@/assets/mX2lljSONA.svg'
 import styles from './login.module.css'
@@ -19,18 +18,16 @@ export default function LoginPage() {
     setBusy(true)
     setError('')
     try {
-      const env = getPublicEnv()
-      const supabase = createBrowserClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-      const result = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      const result = await authClient.signIn.email({ email: email.trim(), password })
       if (result.error) {
-        setError(/invalid login credentials/i.test(result.error.message) ? 'Incorrect email or password.' : 'Sign-in failed. Try again.')
+        setError(/invalid login credentials/i.test(result.error.message ?? '') ? 'Incorrect email or password.' : 'Sign-in failed. Try again.')
       } else {
         window.location.assign('/dashboard')
       }
     } catch (reason) {
-      setError(reason instanceof Error && /Invalid input|NEXT_PUBLIC_SUPABASE/i.test(reason.message)
-        ? 'Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local, then restart the dev server.'
-        : 'Could not reach Supabase. Check your connection and try again.')
+      setError(reason instanceof Error && /Invalid input|NEON_AUTH/i.test(reason.message)
+        ? 'Neon Auth is not configured. Add NEON_AUTH_BASE_URL and NEON_AUTH_COOKIE_SECRET to .env.local, then restart the dev server.'
+        : 'Could not reach Neon Auth. Check your connection and try again.')
     } finally {
       setBusy(false)
     }

@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createNeonDataApiClient } from '@/lib/neon/data-api'
 import type { Company, DashboardData, HistoryCoverage, Ledger, LedgerMonthlyData, Organization, TrialBalanceData, TrialBalanceLedgerRow, VoucherLine, FundsFlowData, FundsFlowGroup, FundsFlowSubgroup, FundsFlowEntry, FundsFlowSummary, TdsReportData } from '@/lib/types'
 import { buildTdsReport, type TdsLedgerBalance, type TdsSourceLine } from '@/lib/tds'
 
@@ -30,28 +30,28 @@ export function groupTrialBalanceRows(rows: TrialBalanceSourceRow[]) {
 }
 
 export async function listOrganizations(): Promise<Organization[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.from('tb_organizations').select('id,name,created_at').order('name')
+  const client = createNeonDataApiClient()
+  const { data, error } = await client.from('tb_organizations').select('id,name,created_at').order('name')
   if (error) throw new Error(`Could not load organizations: ${error.message}`)
   return data ?? []
 }
 
 export async function listCompanies(orgId: string): Promise<Company[]> {
-  const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.from('tb_companies').select('id,org_id,name,tally_company_guid,last_successful_sync_at,last_sync_status,last_sync_error,is_active,updated_at').eq('org_id', orgId).eq('is_active', true).order('name')
+  const client = createNeonDataApiClient()
+  const { data, error } = await client.from('tb_companies').select('id,org_id,name,tally_company_guid,last_successful_sync_at,last_sync_status,last_sync_error,is_active,updated_at').eq('org_id', orgId).eq('is_active', true).order('name')
   if (error) throw new Error(`Could not load companies: ${error.message}`)
   return data ?? []
 }
 
 export async function getDashboardData(companyId: string, from?: string, to?: string): Promise<DashboardData> {
-  const supabase = await createSupabaseServerClient()
-  const coverageResult = await supabase.rpc('tb_history_coverage', { target_company: companyId })
+  const client = createNeonDataApiClient()
+  const coverageResult = await client.rpc('tb_history_coverage', { target_company: companyId })
   if (coverageResult.error) throw new Error(`Could not load history coverage: ${coverageResult.error.message}`)
   const history = historyCoverage(coverageResult.data?.[0], from, to)
   const [syncResult, companyResult, ledgersResult] = await Promise.all([
-    supabase.from('tb_company_sync_state').select('company_id,last_catalog_seen_at,last_ledger_sync_at,last_voucher_sync_at,last_error,updated_at').eq('company_id', companyId).maybeSingle(),
-    supabase.from('tb_companies').select('id,last_successful_sync_at,last_sync_status,last_sync_error').eq('id', companyId).maybeSingle(),
-    supabase.from('tb_ledgers').select('id,org_id,company_id,name,parent_name,opening_balance,closing_balance,is_deleted').eq('company_id', companyId).eq('is_deleted', false).order('name').limit(1000),
+    client.from('tb_company_sync_state').select('company_id,last_catalog_seen_at,last_ledger_sync_at,last_voucher_sync_at,last_error,updated_at').eq('company_id', companyId).maybeSingle(),
+    client.from('tb_companies').select('id,last_successful_sync_at,last_sync_status,last_sync_error').eq('id', companyId).maybeSingle(),
+    client.from('tb_ledgers').select('id,org_id,company_id,name,parent_name,opening_balance,closing_balance,is_deleted').eq('company_id', companyId).eq('is_deleted', false).order('name').limit(1000),
   ])
   if (syncResult.error || companyResult.error || ledgersResult.error) throw new Error('Could not load dashboard history status')
   const syncError = syncResult.data?.last_error ?? companyResult.data?.last_sync_error ?? null
@@ -60,16 +60,16 @@ export async function getDashboardData(companyId: string, from?: string, to?: st
   if (!history.isAvailable) return { kpis: { totalVouchers: 0, debit: 0, credit: 0, netMovement: 0 }, activity: [], voucherTypes: [], recentVouchers: [], ledgers: (ledgersResult.data ?? []) as Ledger[], sync, history }
 
   const [vouchersResult, movementTotalsResult, monthlyMovementResult, voucherTypesResult] = await Promise.all([
-    supabase.from('tb_vouchers').select('id,company_id,voucher_date,voucher_type,voucher_number,party_ledger_name,narration,is_cancelled,is_optional,is_deleted').eq('company_id', companyId).eq('is_cancelled', false).eq('is_optional', false).eq('is_deleted', false).not('voucher_type', 'ilike', '% Order').gte('voucher_date', from ?? history.baselineDate!).lte('voucher_date', to ?? '2999-12-31').order('voucher_date', { ascending: false }).limit(8),
-    supabase.rpc('tb_dashboard_movement_totals', { target_company: companyId, from_date: from ?? history.baselineDate, to_date: to ?? null }),
-    supabase.rpc('tb_dashboard_monthly_movement', { target_company: companyId, from_date: from ?? history.baselineDate, to_date: to ?? null }),
-    supabase.rpc('tb_dashboard_voucher_type_counts', { target_company: companyId, from_date: from ?? history.baselineDate, to_date: to ?? null }),
+    client.from('tb_vouchers').select('id,company_id,voucher_date,voucher_type,voucher_number,party_ledger_name,narration,is_cancelled,is_optional,is_deleted').eq('company_id', companyId).eq('is_cancelled', false).eq('is_optional', false).eq('is_deleted', false).not('voucher_type', 'ilike', '% Order').gte('voucher_date', from ?? history.baselineDate!).lte('voucher_date', to ?? '2999-12-31').order('voucher_date', { ascending: false }).limit(8),
+    client.rpc('tb_dashboard_movement_totals', { target_company: companyId, from_date: from ?? history.baselineDate, to_date: to ?? null }),
+    client.rpc('tb_dashboard_monthly_movement', { target_company: companyId, from_date: from ?? history.baselineDate, to_date: to ?? null }),
+    client.rpc('tb_dashboard_voucher_type_counts', { target_company: companyId, from_date: from ?? history.baselineDate, to_date: to ?? null }),
   ])
   const movementError = vouchersResult.error ?? movementTotalsResult.error ?? monthlyMovementResult.error ?? voucherTypesResult.error
   if (movementError) throw new Error(`Could not load dashboard movement: ${movementError.message}`)
   const recentVoucherIds = (vouchersResult.data ?? []).map((voucher) => voucher.id)
   const recentLinesResult = recentVoucherIds.length
-    ? await supabase
+    ? await client
         .from('tb_voucher_ledger_entries')
         .select('voucher_id,amount')
         .eq('company_id', companyId)
@@ -93,10 +93,10 @@ export async function getDashboardData(companyId: string, from?: string, to?: st
   }
 }
 export async function searchLedgerLines(companyId: string, ledgerId: string, search?: string, page = 0): Promise<{ ledger: Ledger | null; lines: VoucherLine[]; hasMore: boolean }> {
-  const supabase = await createSupabaseServerClient()
+  const client = createNeonDataApiClient()
   const [ledgerResult, linesResult] = await Promise.all([
-    supabase.from('tb_ledgers').select('id,org_id,company_id,name,parent_name,opening_balance,closing_balance,is_deleted').eq('id', ledgerId).eq('company_id', companyId).eq('is_deleted', false).maybeSingle(),
-    supabase.from('tb_ledger_voucher_lines').select('company_id,ledger_id,ledger_name,voucher_ledger_entry_id,line_number,voucher_id,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,running_balance').eq('company_id', companyId).eq('ledger_id', ledgerId).order('voucher_date', { ascending: false }).range(page * 49, page * 49 + 49),
+    client.from('tb_ledgers').select('id,org_id,company_id,name,parent_name,opening_balance,closing_balance,is_deleted').eq('id', ledgerId).eq('company_id', companyId).eq('is_deleted', false).maybeSingle(),
+    client.from('tb_ledger_voucher_lines').select('company_id,ledger_id,ledger_name,voucher_ledger_entry_id,line_number,voucher_id,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,running_balance').eq('company_id', companyId).eq('ledger_id', ledgerId).order('voucher_date', { ascending: false }).range(page * 49, page * 49 + 49),
   ])
   if (ledgerResult.error || linesResult.error) throw new Error('Could not load ledger detail')
   const lines = ((linesResult.data ?? []) as VoucherLine[]).filter((line) => !search || `${line.particulars ?? ''} ${line.voucher_number ?? ''} ${line.voucher_type ?? ''}`.toLowerCase().includes(search.toLowerCase()))
@@ -104,26 +104,26 @@ export async function searchLedgerLines(companyId: string, ledgerId: string, sea
 }
 
 export async function getTrialBalanceData(companyId: string, from?: string, to?: string): Promise<TrialBalanceData> {
-  const supabase = await createSupabaseServerClient()
-  const coverageResult = await supabase.rpc('tb_history_coverage', { target_company: companyId })
+  const client = createNeonDataApiClient()
+  const coverageResult = await client.rpc('tb_history_coverage', { target_company: companyId })
   if (coverageResult.error) throw new Error(`Could not load history coverage: ${coverageResult.error.message}`)
   const history = historyCoverage(coverageResult.data?.[0], from, to)
   const [syncResult, companyResult] = await Promise.all([
-    supabase.from('tb_company_sync_state').select('last_error').eq('company_id', companyId).maybeSingle(),
-    supabase.from('tb_companies').select('last_sync_status,last_sync_error').eq('id', companyId).maybeSingle(),
+    client.from('tb_company_sync_state').select('last_error').eq('company_id', companyId).maybeSingle(),
+    client.from('tb_companies').select('last_sync_status,last_sync_error').eq('id', companyId).maybeSingle(),
   ])
   if (syncResult.error || companyResult.error) throw new Error('Could not load sync status')
   const syncError = syncResult.data?.last_error ?? companyResult.data?.last_sync_error ?? null
   if (!history.isAvailable) return { groups: [], totalDebit: 0, totalCredit: 0, sync: { status: syncError ? 'error' : companyResult.data?.last_sync_status ?? null, error: syncError }, history, verification: null, authoritativeTotals: null }
   const snapshotAsOfDate = to ?? from ?? null
-  const snapshotResult = snapshotAsOfDate ? await supabase.from('tb_tally_trial_balance_snapshots').select('debit_total,credit_total,rows').eq('company_id', companyId).eq('as_of_date', snapshotAsOfDate).maybeSingle() : { data: null, error: null }
+  const snapshotResult = snapshotAsOfDate ? await client.from('tb_tally_trial_balance_snapshots').select('debit_total,credit_total,rows').eq('company_id', companyId).eq('as_of_date', snapshotAsOfDate).maybeSingle() : { data: null, error: null }
   if (snapshotResult.error) throw new Error(`Could not load Tally Trial Balance snapshot: ${snapshotResult.error.message}`)
   const authoritativeTotals = snapshotResult.data ? { asOfDate: snapshotAsOfDate!, debit: asNumber(snapshotResult.data.debit_total), credit: asNumber(snapshotResult.data.credit_total) } : null
-  const balanceResult = await supabase.rpc('tb_trial_balance', { target_company: companyId, from_date: null, to_date: to ?? from ?? null })
+  const balanceResult = await client.rpc('tb_trial_balance', { target_company: companyId, from_date: null, to_date: to ?? from ?? null })
   if (balanceResult.error) throw new Error(`Could not load Trial Balance: ${balanceResult.error.message}`)
   const groupRows = groupTrialBalanceRows(balanceResult.data ?? [])
   const asOfDate = to ?? from ?? null
-  const verificationResult = asOfDate ? await supabase.rpc('tb_trial_balance_verification', { target_company: companyId, target_date: asOfDate }) : { data: [], error: null }
+  const verificationResult = asOfDate ? await client.rpc('tb_trial_balance_verification', { target_company: companyId, target_date: asOfDate }) : { data: [], error: null }
   if (verificationResult.error) throw new Error(`Could not load Tally verification: ${verificationResult.error.message}`)
   const verificationRows = verificationResult.data ?? []
   const verification = verificationRows.length ? {
@@ -136,12 +136,12 @@ export async function getTrialBalanceData(companyId: string, from?: string, to?:
   return { groups: groupRows, totalDebit: authoritativeTotals?.debit ?? groupRows.reduce((sum, row) => sum + row.debitBalance, 0), totalCredit: authoritativeTotals?.credit ?? groupRows.reduce((sum, row) => sum + row.creditBalance, 0), sync: { status: syncError ? 'error' : companyResult.data?.last_sync_status ?? null, error: syncError }, history, verification, authoritativeTotals }
 }
 export async function getLedgerMonthlyData(companyId: string, ledgerId: string, from?: string, to?: string): Promise<LedgerMonthlyData | null> {
-  const supabase = await createSupabaseServerClient()
-  const ledgerResult = await supabase.from('tb_ledgers').select('id,name,parent_name,opening_balance').eq('id', ledgerId).eq('company_id', companyId).eq('is_deleted', false).maybeSingle()
+  const client = createNeonDataApiClient()
+  const ledgerResult = await client.from('tb_ledgers').select('id,name,parent_name,opening_balance').eq('id', ledgerId).eq('company_id', companyId).eq('is_deleted', false).maybeSingle()
   if (ledgerResult.error) throw new Error(`Could not load ledger: ${ledgerResult.error.message}`)
   if (!ledgerResult.data) return null
 
-  const { data, error } = await supabase.rpc('tb_ledger_monthly_summary', { target_company: companyId, target_ledger: ledgerId, from_date: from ?? null, to_date: to ?? null })
+  const { data, error } = await client.rpc('tb_ledger_monthly_summary', { target_company: companyId, target_ledger: ledgerId, from_date: from ?? null, to_date: to ?? null })
   if (error) throw new Error(`Could not load ledger monthly summary: ${error.message}`)
   const rows = data ?? []
   const first = rows[0]
@@ -343,17 +343,17 @@ function getPrimaryGroupForSubgroup(subgroup: string): string {
 }
 
 export async function getFundsFlowData(companyId: string, from?: string, to?: string): Promise<FundsFlowData> {
-  const supabase = await createSupabaseServerClient()
+  const client = createNeonDataApiClient()
   
   // 1. Get history coverage limits
-  const coverageResult = await supabase.rpc('tb_history_coverage', { target_company: companyId })
+  const coverageResult = await client.rpc('tb_history_coverage', { target_company: companyId })
   if (coverageResult.error) throw new Error(`Could not load history coverage: ${coverageResult.error.message}`)
   const history = historyCoverage(coverageResult.data?.[0], from, to)
   
   // Get sync status
   const [syncResult, companyResult] = await Promise.all([
-    supabase.from('tb_company_sync_state').select('last_error,last_voucher_sync_at,last_ledger_sync_at').eq('company_id', companyId).maybeSingle(),
-    supabase.from('tb_companies').select('name,last_sync_status,last_sync_error,last_successful_sync_at').eq('id', companyId).maybeSingle(),
+    client.from('tb_company_sync_state').select('last_error,last_voucher_sync_at,last_ledger_sync_at').eq('company_id', companyId).maybeSingle(),
+    client.from('tb_companies').select('name,last_sync_status,last_sync_error,last_successful_sync_at').eq('id', companyId).maybeSingle(),
   ])
   if (syncResult.error || companyResult.error) throw new Error('Could not load sync status')
   const syncError = syncResult.data?.last_error ?? companyResult.data?.last_sync_error ?? null
@@ -364,14 +364,14 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
   const toDate = to || null
 
   // 2. Query Trial Balance closing balances (to map ledgers to their parent groups)
-  const balanceResult = await supabase.rpc('tb_trial_balance', { target_company: companyId, from_date: null, to_date: toDate })
+  const balanceResult = await client.rpc('tb_trial_balance', { target_company: companyId, from_date: null, to_date: toDate })
   if (balanceResult.error) throw new Error(`Could not load Trial Balance for report: ${balanceResult.error.message}`)
   const rawBalances = balanceResult.data ?? []
 
   // Override closing balances with the synced closing_balance column from tb_ledgers table when toDate is null or >= lastSyncedAt (latest state)
   const isLatest = !toDate || (lastSyncedAt && new Date(toDate) >= new Date(lastSyncedAt))
   if (isLatest) {
-    const { data: activeLedgers } = await supabase
+    const { data: activeLedgers } = await client
       .from('tb_ledgers')
       .select('id, closing_balance')
       .eq('company_id', companyId)
@@ -394,7 +394,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
   let hasMore = true
   
   while (hasMore) {
-    const linesQuery = supabase
+    const linesQuery = client
       .from('tb_ledger_voucher_lines')
       .select('ledger_id,ledger_name,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,voucher_ledger_entry_id,voucher_id')
       .eq('company_id', companyId)
@@ -567,11 +567,11 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
 }
 
 export async function getTdsReportData(companyId: string, from: string, to: string, asOfDate: string): Promise<TdsReportData> {
-  const supabase = await createSupabaseServerClient()
+  const client = createNeonDataApiClient()
   const [mappingsResult, ledgersResult, sourceResult] = await Promise.all([
-    supabase.from('tds_ledger_mappings').select('id,ledger_id').eq('company_id', companyId).eq('is_payable_ledger', true),
-    supabase.from('tb_ledgers').select('id,name,opening_balance,closing_balance').eq('company_id', companyId).eq('is_deleted', false),
-    supabase.rpc('tb_tds_source_lines', { target_company: companyId, target_as_of: asOfDate }),
+    client.from('tds_ledger_mappings').select('id,ledger_id').eq('company_id', companyId).eq('is_payable_ledger', true),
+    client.from('tb_ledgers').select('id,name,opening_balance,closing_balance').eq('company_id', companyId).eq('is_deleted', false),
+    client.rpc('tb_tds_source_lines', { target_company: companyId, target_as_of: asOfDate }),
   ])
   if (mappingsResult.error || ledgersResult.error || sourceResult.error) {
     throw new Error(`Could not load TDS report: ${mappingsResult.error?.message ?? ledgersResult.error?.message ?? sourceResult.error?.message}`)

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Menu, X, User, ChevronDown, Database, BarChart3, PieChart, Globe, MessageSquare, Upload, Sun, Moon, ShieldCheck } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { createBrowserClient } from '@supabase/ssr'
-import { getPublicEnv } from '@/lib/env'
+import { authClient } from '@/lib/auth/client'
 import { useThemeMode } from '@/app/providers'
 import Sidebar from './Sidebar'
 import { ComplianceReviewLink } from '@/components/compliance-review-link'
@@ -15,33 +14,16 @@ const HeaderInner = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isServicesOpen, setIsServicesOpen] = useState(false)
   const [isReportsOpen, setIsReportsOpen] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const { data: session } = authClient.useSession()
+  const user = session?.user ?? null
   const { mode, toggleMode } = useThemeMode()
   
   const searchParams = useSearchParams()
   const withParams = (path: string) => `${path}?${searchParams.toString()}`
 
-  useEffect(() => {
-    try {
-      const env = getPublicEnv()
-      const supabase = createBrowserClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-      supabase.auth.getSession().then(({ data }) => {
-        setUser(data.session?.user ?? null)
-      })
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user ?? null)
-      })
-      return () => subscription.unsubscribe()
-    } catch (e) {
-      // Ignore on SSR
-    }
-  }, [])
-
   async function handleLogout() {
     try {
-      const env = getPublicEnv()
-      const supabase = createBrowserClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-      await supabase.auth.signOut()
+      await authClient.signOut()
       await fetch('/auth/signout', { method: 'POST' })
     } catch (e) {
       // Ignore

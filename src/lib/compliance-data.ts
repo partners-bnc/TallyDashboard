@@ -1,6 +1,7 @@
 import 'server-only'
 
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { auth } from '@/lib/auth/server'
+import { createNeonDataApiClient } from '@/lib/neon/data-api'
 import {
   isPayableTdsCandidate,
   isInitiallySelectedTdsCandidate,
@@ -14,25 +15,26 @@ import type { TdsComplianceMappingData, TdsMappingGroup } from '@/lib/types'
 const PAGE_SIZE = 1000
 
 export async function isTdsMappingComplete(orgId: string, companyId: string) {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Authentication required')
+  const client = createNeonDataApiClient()
+  const { data: session, error: sessionError } = await auth.getSession()
+  const user = session?.user
+  if (sessionError || !user) throw new Error('Authentication required')
 
   const [membershipResult, companyResult, profileResult] = await Promise.all([
-    supabase
+    client
       .from('tb_org_members')
       .select('org_id')
       .eq('org_id', orgId)
       .eq('user_id', user.id)
       .maybeSingle(),
-    supabase
+    client
       .from('tb_companies')
       .select('id')
       .eq('id', companyId)
       .eq('org_id', orgId)
       .eq('is_active', true)
       .maybeSingle(),
-    supabase
+    client
       .from('compliance_mapping_profiles')
       .select('status')
       .eq('org_id', orgId)
@@ -57,11 +59,12 @@ export async function getTdsComplianceMappingData(
   orgId: string,
   companyId: string,
 ): Promise<TdsComplianceMappingData> {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) throw new Error('Authentication required')
+  const client = createNeonDataApiClient()
+  const { data: session, error: sessionError } = await auth.getSession()
+  const user = session?.user
+  if (sessionError || !user) throw new Error('Authentication required')
 
-  const { data: membership, error: membershipError } = await supabase
+  const { data: membership, error: membershipError } = await client
     .from('tb_org_members')
     .select('org_id')
     .eq('org_id', orgId)
@@ -69,7 +72,7 @@ export async function getTdsComplianceMappingData(
     .maybeSingle()
   if (membershipError || !membership) throw new Error('Organization membership required')
 
-  const { data: company, error: companyError } = await supabase
+  const { data: company, error: companyError } = await client
     .from('tb_companies')
     .select('id,name')
     .eq('id', companyId)
@@ -92,7 +95,7 @@ export async function getTdsComplianceMappingData(
   }> = []
 
   for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('tb_ledgers')
       .select('id,name,parent_name,parent_group_id')
       .eq('org_id', orgId)
@@ -106,7 +109,7 @@ export async function getTdsComplianceMappingData(
   }
 
   for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('tb_ledger_groups')
       .select('id,name,parent_name,parent_group_id')
       .eq('org_id', orgId)
@@ -120,14 +123,14 @@ export async function getTdsComplianceMappingData(
   }
 
   const [profileResult, mappingsResult] = await Promise.all([
-    supabase
+    client
       .from('compliance_mapping_profiles')
       .select('status')
       .eq('org_id', orgId)
       .eq('company_id', companyId)
       .eq('compliance_type', 'TDS')
       .maybeSingle(),
-    supabase
+    client
       .from('tds_ledger_mappings')
       .select('ledger_id')
       .eq('org_id', orgId)

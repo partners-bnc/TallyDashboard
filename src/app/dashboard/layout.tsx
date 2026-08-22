@@ -1,10 +1,11 @@
 import { Suspense, type ReactNode } from 'react'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { auth } from '@/lib/auth/server'
 import { ComplianceGate } from './compliance-gate'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return children
-  return <Suspense fallback={null}><ComplianceGate userId={user.id}>{children}</ComplianceGate></Suspense>
+  const { data: session } = await auth.getSession()
+  if (!session?.user) return children
+  return <Suspense fallback={null}><ComplianceGate userId={session.user.id}>{children}</ComplianceGate></Suspense>
 }
