@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { DutiesAndTaxesReport } from './DutiesAndTaxesReport'
-import { getGstReportData, listCompanies, listOrganizations } from '@/lib/data'
+import { listCompanies, listOrganizations } from '@/lib/data'
+import { getGstReportData } from '@/lib/gst-data'
 import { normalizePeriodQuery } from '@/lib/period'
 import { currentFinancialYear } from '@/lib/tds'
 import { isMappingComplete } from '@/lib/compliance-data'

@@ -1,6 +1,6 @@
 import { test } from 'vitest'
 import { createNeonDataApiClient } from '@/lib/neon/data-api'
-import { getGstReportData } from '@/lib/data'
+import { getGstReportData } from '@/lib/gst-data'
 
 test('inspect database values', async () => {
   const client = createNeonDataApiClient()
@@ -38,7 +38,7 @@ test('inspect database values', async () => {
     const reportData = await getGstReportData(company.id, '2021-04-01', '2027-03-31')
     console.log('REPORT DATA LEDGERS:')
     for (const l of reportData.ledgers) {
-      console.log(`- ${l.ledgerName} (Category: ${l.category}) | Opening: ${l.openingBalance} | Closing: ${l.closingBalance} | Movement: ${l.netMovement}`)
+      console.log(`- ${l.ledgerName} (Group: ${l.parentName}) | Debit: ${l.debitBalance} | Credit: ${l.creditBalance}`)
     }
   } catch (err) {
     console.error('Report error:', err)

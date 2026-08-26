@@ -4,11 +4,12 @@ import { useMemo, useState, useTransition, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@astryxdesign/core/Button'
-import { ArrowUpRight, ArrowsClockwise, CaretDown, ChartLineUp, MagnifyingGlass, Receipt, TrendUp, TrendDown, Scales, X, Buildings, ArrowsLeftRight, ChartBar, Clock, Notebook, ShieldCheck, User } from '@phosphor-icons/react'
+import { ArrowUpRight, ArrowsClockwise, CaretDown, ChartLineUp, MagnifyingGlass, Receipt, TrendUp, TrendDown, Scales, X, Buildings, ArrowsLeftRight, Clock, Notebook, ShieldCheck, User } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Company, DashboardData, Organization, TdsReportData } from '@/lib/types'
-import type { PromotersReportData, GstReportData } from '@/lib/data'
+import type { PromotersReportData } from '@/lib/data'
+import type { GstReportData } from '@/lib/gst-data'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
 import styles from './dashboard.module.css'
@@ -487,44 +488,40 @@ export function Dashboard({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                           <div style={{ background: 'var(--bg-sidebar, #f8fafc)', border: '1px solid var(--rule, #e2e8f0)', borderRadius: 12, padding: 12 }}>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted, #64748b)', textTransform: 'uppercase' }}>Input GST (ITC)</span>
-                            <strong style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>{money.format(gstData.totalInput)}</strong>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted, #64748b)', textTransform: 'uppercase' }}>Debit Balance</span>
+                            <strong style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>{money.format(gstData.totalDebitBalance)}</strong>
                           </div>
                           <div style={{ background: 'var(--bg-sidebar, #f8fafc)', border: '1px solid var(--rule, #e2e8f0)', borderRadius: 12, padding: 12 }}>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted, #64748b)', textTransform: 'uppercase' }}>Output GST</span>
-                            <strong style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#ef4444', marginTop: 4 }}>{money.format(gstData.totalOutput)}</strong>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted, #64748b)', textTransform: 'uppercase' }}>Credit Balance</span>
+                            <strong style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#ef4444', marginTop: 4 }}>{money.format(gstData.totalCreditBalance)}</strong>
                           </div>
                           <div style={{ background: 'var(--bg-sidebar, #f8fafc)', border: '1px solid var(--rule, #e2e8f0)', borderRadius: 12, padding: 12 }}>
                             <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted, #64748b)', textTransform: 'uppercase' }}>Net Position</span>
-                            <strong style={{ display: 'block', fontSize: 16, fontWeight: 800, color: gstData.netPosition >= 0 ? '#16a34a' : '#ef4444', marginTop: 4 }}>
-                              {money.format(Math.abs(gstData.netPosition))}
+                            <strong style={{ display: 'block', fontSize: 16, fontWeight: 800, color: gstData.netNature === 'Dr' ? '#16a34a' : '#ef4444', marginTop: 4 }}>
+                              {money.format(gstData.netBalance)}
                             </strong>
-                            <span style={{ fontSize: 8, fontWeight: 600, color: gstData.netPosition >= 0 ? '#15803d' : '#b45309' }}>
-                              {gstData.netPosition >= 0 ? 'Refundable' : 'Payable'}
+                            <span style={{ fontSize: 8, fontWeight: 600, color: gstData.netNature === 'Dr' ? '#15803d' : '#b45309' }}>
+                              {gstData.netNature}
                             </span>
                           </div>
                         </div>
 
-                        {/* Miniature Classification Table */}
+                        {/* Largest mapped closing balances */}
                         <div style={{ overflowX: 'auto' }}>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                             <thead>
                               <tr style={{ borderBottom: '1px solid var(--rule, #e2e8f0)', textAlign: 'left', color: 'var(--muted, #64748b)' }}>
-                                <th style={{ padding: '6px 4px' }}>Tax Type</th>
-                                <th style={{ padding: '6px 4px', textAlign: 'right' }}>Input</th>
-                                <th style={{ padding: '6px 4px', textAlign: 'right' }}>Output</th>
-                                <th style={{ padding: '6px 4px', textAlign: 'right' }}>Net</th>
+                                <th style={{ padding: '6px 4px' }}>Ledger</th>
+                                <th style={{ padding: '6px 4px', textAlign: 'right' }}>Debit</th>
+                                <th style={{ padding: '6px 4px', textAlign: 'right' }}>Credit</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {gstData.taxTypes.slice(0, 3).map((t) => (
-                                <tr key={t.type} style={{ borderBottom: '1px solid var(--rule, #f1f5f9)', color: 'var(--foreground, #334155)' }}>
-                                  <td style={{ padding: '6px 4px', fontWeight: 600 }}>{t.type}</td>
-                                  <td style={{ padding: '6px 4px', textAlign: 'right', color: '#16a34a' }}>{money.format(t.input)}</td>
-                                  <td style={{ padding: '6px 4px', textAlign: 'right', color: '#ef4444' }}>{money.format(t.output)}</td>
-                                  <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 700, color: t.net >= 0 ? '#16a34a' : '#ef4444' }}>
-                                    {money.format(Math.abs(t.net))} {t.net >= 0 ? 'Dr' : 'Cr'}
-                                  </td>
+                              {gstData.ledgers.slice(0, 3).map((ledger) => (
+                                <tr key={ledger.ledgerId} style={{ borderBottom: '1px solid var(--rule, #f1f5f9)', color: 'var(--foreground, #334155)' }}>
+                                  <td style={{ padding: '6px 4px', fontWeight: 600 }}>{ledger.ledgerName}</td>
+                                  <td style={{ padding: '6px 4px', textAlign: 'right', color: '#16a34a' }}>{money.format(ledger.debitBalance)}</td>
+                                  <td style={{ padding: '6px 4px', textAlign: 'right', color: '#ef4444' }}>{money.format(ledger.creditBalance)}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -534,26 +531,26 @@ export function Dashboard({
 
                       {/* Right: Small Bar Chart */}
                       <div style={{ height: 180 }}>
-                        {gstData.monthlyTrends.length > 0 ? (
+                        {gstData.ledgers.length > 0 ? (
                           <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={gstData.monthlyTrends} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                            <BarChart data={gstData.ledgers.slice(0, 8)} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                               <CartesianGrid vertical={false} stroke="var(--rule, #f1f5f9)" />
-                              <XAxis dataKey="month" tickLine={false} axisLine={false} style={{ fontSize: '10px', fill: 'var(--muted, #64748b)' }} />
+                              <XAxis dataKey="ledgerName" tickLine={false} axisLine={false} hide />
                               <YAxis tickLine={false} axisLine={false} style={{ fontSize: '10px', fill: 'var(--muted, #64748b)' }} tickFormatter={(v) => compact.format(v)} />
                               <Tooltip formatter={(value) => money.format(Number(value))} />
-                              <Bar name="Input" dataKey="input" fill="#10b981" radius={[3, 3, 0, 0]} />
-                              <Bar name="Output" dataKey="output" fill="var(--accent, #6366f1)" radius={[3, 3, 0, 0]} />
+                              <Bar name="Debit" dataKey="debitBalance" fill="#10b981" radius={[3, 3, 0, 0]} />
+                              <Bar name="Credit" dataKey="creditBalance" fill="var(--accent, #6366f1)" radius={[3, 3, 0, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
                         ) : (
                           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted, #64748b)', fontSize: 12 }}>
-                            No monthly transaction data available.
+                            No mapped closing balances available.
                           </div>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <EmptyPanel title="No Duties & Taxes mapped" detail="GST summary & trends will appear after mapping GST groups." />
+                    <EmptyPanel title="No Duties & Taxes mapped" detail="GST closing balances will appear after mapping GST groups." />
                   )}
                 </article>
               </section>

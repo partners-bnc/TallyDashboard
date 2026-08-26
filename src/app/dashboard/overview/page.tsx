@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { getDashboardData, getTdsReportData, getPromotersReportData, getGstReportData, listCompanies, listOrganizations } from '@/lib/data'
+import { getDashboardData, getTdsReportData, getPromotersReportData, listCompanies, listOrganizations } from '@/lib/data'
+import { getGstReportData } from '@/lib/gst-data'
 import { Dashboard } from '@/components/dashboard'
 import { normalizePeriodQuery } from '@/lib/period'
 import { currentFinancialYear, TDS_BOOKS_AS_OF_DATE } from '@/lib/tds'
