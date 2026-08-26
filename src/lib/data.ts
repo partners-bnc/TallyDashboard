@@ -1,5 +1,6 @@
 import { createNeonDataApiClient } from '@/lib/neon/data-api'
-import type { Company, DashboardData, HistoryCoverage, Ledger, LedgerMonthlyData, Organization, TrialBalanceData, TrialBalanceLedgerRow, VoucherLine, FundsFlowData, FundsFlowGroup, FundsFlowSubgroup, FundsFlowEntry, FundsFlowSummary, TdsReportData } from '@/lib/types'
+import { resolveActiveLedgers } from '@/lib/centralized-mapping'
+import type { Company, DashboardData, HistoryCoverage, Ledger, LedgerMonthlyData, Organization, TrialBalanceData, TrialBalanceLedgerRow, VoucherLine, FundsFlowData, FundsFlowGroup, FundsFlowGroupNode, FundsFlowLedger, FundsFlowEntry, FundsFlowSummary, TdsReportData } from '@/lib/types'
 import { buildTdsReport, type TdsLedgerBalance, type TdsSourceLine } from '@/lib/tds'
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0)
@@ -70,10 +71,10 @@ export async function getDashboardData(companyId: string, from?: string, to?: st
   const recentVoucherIds = (vouchersResult.data ?? []).map((voucher) => voucher.id)
   const recentLinesResult = recentVoucherIds.length
     ? await client
-        .from('tb_voucher_ledger_entries')
-        .select('voucher_id,amount')
-        .eq('company_id', companyId)
-        .in('voucher_id', recentVoucherIds)
+      .from('tb_voucher_ledger_entries')
+      .select('voucher_id,amount')
+      .eq('company_id', companyId)
+      .in('voucher_id', recentVoucherIds)
     : { data: [], error: null }
   if (recentLinesResult.error) throw new Error(`Could not load recent voucher amounts: ${recentLinesResult.error.message}`)
   const totals = movementTotalsResult.data?.[0]
@@ -237,16 +238,16 @@ function getPrimaryGroupForSubgroup(subgroup: string): string {
   if (SUBGROUP_TO_PRIMARY_MAP[normalized]) {
     return SUBGROUP_TO_PRIMARY_MAP[normalized]
   }
-  
+
   if (
-    normalized.includes('furniture') || 
-    normalized.includes('funiture') || 
-    normalized.includes('fixtures') || 
-    normalized.includes('machinery') || 
+    normalized.includes('furniture') ||
+    normalized.includes('funiture') ||
+    normalized.includes('fixtures') ||
+    normalized.includes('machinery') ||
     normalized.includes('tools') ||
-    normalized.includes('equipment') || 
-    normalized.includes('building') || 
-    normalized.includes('land') || 
+    normalized.includes('equipment') ||
+    normalized.includes('building') ||
+    normalized.includes('land') ||
     normalized.includes('fixed asset') ||
     normalized.includes('computer') ||
     normalized.includes('laptop') ||
@@ -255,13 +256,13 @@ function getPrimaryGroupForSubgroup(subgroup: string): string {
     return 'Fixed Assets'
   }
   if (
-    normalized.includes('creditor') || 
-    normalized.includes('liability') || 
-    normalized.includes('duties') || 
-    normalized.includes('taxes') || 
-    normalized.includes('tax') || 
-    normalized.includes('gst') || 
-    normalized.includes('rcm') || 
+    normalized.includes('creditor') ||
+    normalized.includes('liability') ||
+    normalized.includes('duties') ||
+    normalized.includes('taxes') ||
+    normalized.includes('tax') ||
+    normalized.includes('gst') ||
+    normalized.includes('rcm') ||
     normalized.includes('provision') ||
     normalized.includes('payable') ||
     normalized.includes('payble') ||
@@ -270,13 +271,13 @@ function getPrimaryGroupForSubgroup(subgroup: string): string {
     return 'Current Liabilities'
   }
   if (
-    normalized.includes('debtor') || 
-    normalized.includes('bank') || 
-    normalized.includes('cash') || 
-    normalized.includes('stock') || 
-    normalized.includes('advance') || 
-    normalized.includes('receivable') || 
-    normalized.includes('deposit') || 
+    normalized.includes('debtor') ||
+    normalized.includes('bank') ||
+    normalized.includes('cash') ||
+    normalized.includes('stock') ||
+    normalized.includes('advance') ||
+    normalized.includes('receivable') ||
+    normalized.includes('deposit') ||
     normalized.includes('current asset') ||
     normalized.includes('investment') ||
     normalized.includes('fdr')
@@ -284,10 +285,10 @@ function getPrimaryGroupForSubgroup(subgroup: string): string {
     return 'Current Assets'
   }
   if (
-    normalized.includes('indirect expense') || 
-    normalized.includes('salary') || 
-    normalized.includes('wages') || 
-    normalized.includes('rent') || 
+    normalized.includes('indirect expense') ||
+    normalized.includes('salary') ||
+    normalized.includes('wages') ||
+    normalized.includes('rent') ||
     normalized.includes('operating') ||
     normalized.includes('insurance') ||
     normalized.includes('promotion') ||
@@ -305,10 +306,10 @@ function getPrimaryGroupForSubgroup(subgroup: string): string {
     return 'Indirect Expenses'
   }
   if (
-    normalized.includes('direct expense') || 
-    normalized.includes('freight') || 
-    normalized.includes('logistics') || 
-    normalized.includes('rm') || 
+    normalized.includes('direct expense') ||
+    normalized.includes('freight') ||
+    normalized.includes('logistics') ||
+    normalized.includes('rm') ||
     normalized.includes('material') ||
     normalized.includes('sample')
   ) {
@@ -335,7 +336,7 @@ function getPrimaryGroupForSubgroup(subgroup: string): string {
   if (normalized.includes('capital') || normalized.includes('reserve') || normalized.includes('surplus')) {
     return 'Capital Account'
   }
-  
+
   return subgroup
     .split(' ')
     .map(w => w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : '')
@@ -344,12 +345,12 @@ function getPrimaryGroupForSubgroup(subgroup: string): string {
 
 export async function getFundsFlowData(companyId: string, from?: string, to?: string): Promise<FundsFlowData> {
   const client = createNeonDataApiClient()
-  
+
   // 1. Get history coverage limits
   const coverageResult = await client.rpc('tb_history_coverage', { target_company: companyId })
   if (coverageResult.error) throw new Error(`Could not load history coverage: ${coverageResult.error.message}`)
   const history = historyCoverage(coverageResult.data?.[0], from, to)
-  
+
   // Get sync status
   const [syncResult, companyResult] = await Promise.all([
     client.from('tb_company_sync_state').select('last_error,last_voucher_sync_at,last_ledger_sync_at').eq('company_id', companyId).maybeSingle(),
@@ -376,7 +377,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
       .select('id, closing_balance')
       .eq('company_id', companyId)
       .eq('is_deleted', false)
-      
+
     if (activeLedgers) {
       const ledgerBalanceMap = new Map(activeLedgers.map(l => [l.id, l.closing_balance]))
       for (const b of rawBalances) {
@@ -392,7 +393,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
   let page = 0
   const pageSize = 1000
   let hasMore = true
-  
+
   while (hasMore) {
     const linesQuery = client
       .from('tb_ledger_voucher_lines')
@@ -402,22 +403,34 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
       .order('voucher_date', { ascending: true })
       .order('voucher_ledger_entry_id', { ascending: true })
       .range(page * pageSize, (page + 1) * pageSize - 1)
-      
+
     if (to) {
       linesQuery.lte('voucher_date', to)
     }
-    
+
     const linesResult = await linesQuery
     if (linesResult.error) throw new Error(`Could not load voucher lines for report: ${linesResult.error.message}`)
-    
+
     const pageData = linesResult.data ?? []
     rawLines.push(...pageData)
-    
+
     if (pageData.length < pageSize) {
       hasMore = false
     } else {
       page++
     }
+  }
+
+  // Fetch ledger groups for full tree structure
+  const { data: dbGroups } = await client
+    .from('tb_ledger_groups')
+    .select('name, parent_name')
+    .eq('company_id', companyId)
+    .eq('is_deleted', false)
+
+  const groupParentMap = new Map<string, string>()
+  for (const g of dbGroups || []) {
+    groupParentMap.set(g.name.toLowerCase(), g.parent_name ?? 'Unassigned')
   }
 
   // Create mappings of ledger name and ledger ID to Tally Parent Group
@@ -441,40 +454,116 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
       .join(' ')
   }
 
-  // Dynamic Grouping Map: Primary Group -> Subgroup -> Subgroup Data
-  interface SubgroupDataAccumulator {
-    ledgers: { ledgerName: string; closingBalance: number; ledgerId?: string }[]
-    voucherLines: FundsFlowEntry[]
+  const isTopLevelParent = (pName: string | null | undefined): boolean => {
+    if (!pName) return true
+    const norm = pName.toLowerCase().trim()
+    return norm === 'primary' || norm.includes('primary') || norm === 'unassigned'
+  }
+
+  // Helper to trace back to primary group
+  const traceToPrimaryGroup = (groupName: string): { primary: string, path: string[] } => {
+    const fullPath: string[] = []
+    let current = groupName
+    
+    const seen = new Set<string>()
+    while (current && current.toLowerCase() !== 'unassigned') {
+      const currentNorm = current.toLowerCase().trim()
+      if (seen.has(currentNorm)) break
+      seen.add(currentNorm)
+      
+      const formatted = formatGroupName(current)
+      fullPath.unshift(formatted)
+      
+      const parent = groupParentMap.get(currentNorm)
+      if (!parent || isTopLevelParent(parent)) {
+        break
+      }
+      current = parent
+    }
+    
+    const primary = fullPath[0] || 'Unassigned'
+    const path = fullPath.slice(1)
+    return { primary, path }
+  }
+
+  // Build recursive structure
+  const primaryGroupsNodeMap = new Map<string, FundsFlowGroupNode>()
+
+  // 1. Initialize primaryGroupsNodeMap with all top-level groups in the database
+  for (const g of dbGroups || []) {
+    if (!g.parent_name || isTopLevelParent(g.parent_name)) {
+      const formatted = formatGroupName(g.name)
+      // Skip "Primary" itself to prevent it from showing as a selectable primary group
+      if (formatted.toLowerCase() === 'primary' || formatted.toLowerCase().includes('primary')) {
+        continue
+      }
+      if (!primaryGroupsNodeMap.has(formatted)) {
+        primaryGroupsNodeMap.set(formatted, {
+          name: formatted,
+          debitTotal: 0,
+          creditTotal: 0,
+          netMovement: 0,
+          closingBalance: 0,
+          subgroups: [],
+          ledgers: [],
+          voucherLines: []
+        })
+      }
+    }
   }
   
-  const primaryGroupsMap = new Map<string, Map<string, SubgroupDataAccumulator>>()
+  // Ensure Unassigned exists
+  if (!primaryGroupsNodeMap.has('Unassigned')) {
+    primaryGroupsNodeMap.set('Unassigned', {
+      name: 'Unassigned',
+      debitTotal: 0,
+      creditTotal: 0,
+      netMovement: 0,
+      closingBalance: 0,
+      subgroups: [],
+      ledgers: [],
+      voucherLines: []
+    })
+  }
 
-  // 1. Initialize Subgroups and Ledgers from rawBalances (to capture all subgroups with active closing balances)
+  const ensureNode = (primary: string, path: string[]): FundsFlowGroupNode => {
+    let currentPrimary = primaryGroupsNodeMap.get(primary)
+    if (!currentPrimary) {
+      currentPrimary = { name: primary, debitTotal: 0, creditTotal: 0, netMovement: 0, closingBalance: 0, subgroups: [], ledgers: [], voucherLines: [] }
+      primaryGroupsNodeMap.set(primary, currentPrimary)
+    }
+    
+    let currentNode = currentPrimary
+    for (const step of path) {
+      let child = currentNode.subgroups.find((s: FundsFlowGroupNode) => s.name === step)
+      if (!child) {
+        child = { name: step, debitTotal: 0, creditTotal: 0, netMovement: 0, closingBalance: 0, subgroups: [], ledgers: [], voucherLines: [] }
+        currentNode.subgroups.push(child)
+      }
+      currentNode = child
+    }
+    
+    return currentNode
+  }
+
+  // 2. Incorporate closing balances
   for (const b of rawBalances) {
     const subGroupRaw = b.parent_name || 'Unassigned'
-    const subGroup = formatGroupName(subGroupRaw)
-    const primaryGroup = getPrimaryGroupForSubgroup(subGroupRaw)
+    const { primary, path } = traceToPrimaryGroup(subGroupRaw)
+    const node = ensureNode(primary, path)
     
-    if (!primaryGroupsMap.has(primaryGroup)) {
-      primaryGroupsMap.set(primaryGroup, new Map())
-    }
-    const subMap = primaryGroupsMap.get(primaryGroup)!
-    if (!subMap.has(subGroup)) {
-      subMap.set(subGroup, { ledgers: [], voucherLines: [] })
-    }
-    
-    subMap.get(subGroup)!.ledgers.push({
+    node.ledgers.push({
       ledgerName: b.ledger_name || 'Unknown Ledger',
       closingBalance: asNumber(b.closing_balance),
       ledgerId: b.ledger_id || undefined
     })
   }
 
-  // 2. Incorporate Voucher Lines into existing or new subgroups
+  // 3. Incorporate Voucher Lines
   for (const l of rawLines) {
     const subGroupRaw = getParentGroup(l.ledger_name, l.ledger_id)
-    const subGroup = formatGroupName(subGroupRaw)
-    const primaryGroup = getPrimaryGroupForSubgroup(subGroupRaw)
+    const { primary, path } = traceToPrimaryGroup(subGroupRaw)
+    const node = ensureNode(primary, path)
     
     const entry: FundsFlowEntry = {
       date: l.voucher_date,
@@ -486,59 +575,47 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
       voucherId: l.voucher_id
     }
     
-    if (!primaryGroupsMap.has(primaryGroup)) {
-      primaryGroupsMap.set(primaryGroup, new Map())
-    }
-    const subMap = primaryGroupsMap.get(primaryGroup)!
-    if (!subMap.has(subGroup)) {
-      subMap.set(subGroup, { ledgers: [], voucherLines: [] })
+    node.voucherLines.push(entry)
+  }
+
+  // 4. Roll up totals recursively
+  const rollup = (node: FundsFlowGroupNode) => {
+    let dTotal = node.voucherLines.reduce((sum: number, item: FundsFlowEntry) => sum + (item.debit ?? 0), 0)
+    let cTotal = node.voucherLines.reduce((sum: number, item: FundsFlowEntry) => sum + (item.credit ?? 0), 0)
+    let cb = node.ledgers.reduce((sum: number, item: FundsFlowLedger) => sum + item.closingBalance, 0)
+    
+    node.ledgers.sort((a: FundsFlowLedger, b: FundsFlowLedger) => a.ledgerName.localeCompare(b.ledgerName))
+    node.subgroups.sort((a: FundsFlowGroupNode, b: FundsFlowGroupNode) => a.name.localeCompare(b.name))
+    
+    for (const sub of node.subgroups) {
+      rollup(sub)
+      dTotal += sub.debitTotal
+      cTotal += sub.creditTotal
+      cb += sub.closingBalance
     }
     
-    subMap.get(subGroup)!.voucherLines.push(entry)
+    node.debitTotal = dTotal
+    node.creditTotal = cTotal
+    node.closingBalance = cb
+    node.netMovement = cTotal - dTotal
   }
 
   const groups: FundsFlowGroup[] = []
   
-  for (const [primaryName, subMap] of primaryGroupsMap.entries()) {
-    const subgroupsList: FundsFlowSubgroup[] = []
-    let groupDebitTotal = 0
-    let groupCreditTotal = 0
-    let groupClosingBalance = 0
-    
-    for (const [subName, acc] of subMap.entries()) {
-      const debitTotal = acc.voucherLines.reduce((sum, item) => sum + (item.debit ?? 0), 0)
-      const creditTotal = acc.voucherLines.reduce((sum, item) => sum + (item.credit ?? 0), 0)
-      const closingBalance = acc.ledgers.reduce((sum, item) => sum + item.closingBalance, 0)
-      
-      acc.ledgers.sort((a, b) => a.ledgerName.localeCompare(b.ledgerName))
-      
-      subgroupsList.push({
-        subgroupName: subName,
-        debitTotal,
-        creditTotal,
-        netMovement: creditTotal - debitTotal,
-        closingBalance,
-        ledgers: acc.ledgers,
-        voucherLines: acc.voucherLines
-      })
-      
-      groupDebitTotal += debitTotal
-      groupCreditTotal += creditTotal
-      groupClosingBalance += closingBalance
+  for (const [primaryName, primaryNode] of primaryGroupsNodeMap.entries()) {
+    if (primaryName.toLowerCase() === 'primary' || primaryName.toLowerCase().includes('primary')) {
+      continue
     }
+    rollup(primaryNode)
     
-    subgroupsList.sort((a, b) => a.subgroupName.localeCompare(b.subgroupName))
-    
-    // Only show groups that have active transactions or non-zero closing balances
-    if (Math.abs(groupClosingBalance) > 0.005 || Math.abs(groupDebitTotal) > 0.005 || Math.abs(groupCreditTotal) > 0.005) {
-      groups.push({
-        groupName: primaryName,
-        debitTotal: groupDebitTotal,
-        creditTotal: groupCreditTotal,
-        netMovement: groupCreditTotal - groupDebitTotal,
-        subgroups: subgroupsList
-      })
-    }
+    groups.push({
+      groupName: primaryName,
+      debitTotal: primaryNode.debitTotal,
+      creditTotal: primaryNode.creditTotal,
+      netMovement: primaryNode.netMovement,
+      closingBalance: primaryNode.closingBalance,
+      subgroups: primaryNode.subgroups
+    })
   }
 
   // Sort groups alphabetically
@@ -568,15 +645,15 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
 
 export async function getTdsReportData(companyId: string, from: string, to: string, asOfDate: string): Promise<TdsReportData> {
   const client = createNeonDataApiClient()
-  const [mappingsResult, ledgersResult, sourceResult] = await Promise.all([
-    client.from('tds_ledger_mappings').select('id,ledger_id').eq('company_id', companyId).eq('is_payable_ledger', true),
+  const [activeMapping, ledgersResult, sourceResult] = await Promise.all([
+    resolveActiveLedgers(companyId, 'TDS'),
     client.from('tb_ledgers').select('id,name,opening_balance,closing_balance').eq('company_id', companyId).eq('is_deleted', false),
     client.rpc('tb_tds_source_lines', { target_company: companyId, target_as_of: asOfDate }),
   ])
-  if (mappingsResult.error || ledgersResult.error || sourceResult.error) {
-    throw new Error(`Could not load TDS report: ${mappingsResult.error?.message ?? ledgersResult.error?.message ?? sourceResult.error?.message}`)
+  if (ledgersResult.error || sourceResult.error) {
+    throw new Error(`Could not load TDS report: ${ledgersResult.error?.message ?? sourceResult.error?.message}`)
   }
-  const mappedLedgerIds = new Set((mappingsResult.data ?? []).map((mapping) => mapping.ledger_id))
+  const mappedLedgerIds = activeMapping.activeLedgerIds
   const ledgerBalances: TdsLedgerBalance[] = (ledgersResult.data ?? [])
     .filter((ledger) => mappedLedgerIds.has(ledger.id))
     .map((ledger) => ({ ledgerId: ledger.id, openingBalance: asNumber(ledger.opening_balance), closingBalance: asNumber(ledger.closing_balance) }))
@@ -589,8 +666,8 @@ export async function getTdsReportData(companyId: string, from: string, to: stri
     sectionCode: line.section_code,
     roundingTolerance: asNumber(line.rounding_tolerance),
     journalTreatment: line.journal_treatment,
-    liabilityVoucherTypes: line.liability_voucher_types,
-    depositVoucherTypes: line.deposit_voucher_types,
+    liabilityVoucherTypes: line.liability_voucher_types || [],
+    depositVoucherTypes: line.deposit_voucher_types || [],
     voucherLedgerEntryId: line.voucher_ledger_entry_id,
     voucherDate: line.voucher_date,
     voucherType: line.voucher_type,
@@ -600,4 +677,756 @@ export async function getTdsReportData(companyId: string, from: string, to: stri
     rawSignedAmount: asNumber(line.raw_signed_amount),
   }))
   return buildTdsReport({ companyId, asOfDate, from, to, lines, ledgerBalances })
+}
+
+export interface PromoterLedgerPosition {
+  ledgerId: string
+  ledgerName: string
+  openingBalance: number
+  closingBalance: number
+  netMovement: number
+}
+
+export interface PromoterVoucherEntry {
+  id: string
+  voucherId: string
+  ledgerId: string
+  date: string
+  type: string
+  number: string
+  particulars: string
+  amount: number
+  debit: number
+  credit: number
+}
+
+export interface PromotersReportData {
+  companyId: string
+  totalCapital: number
+  openingCapital: number
+  netMovement: number
+  transactionCount: number
+  ledgers: PromoterLedgerPosition[]
+  entriesByLedger: Record<string, PromoterVoucherEntry[]>
+}
+
+export async function getPromotersReportData(companyId: string, from?: string, to?: string): Promise<PromotersReportData> {
+  const client = createNeonDataApiClient()
+
+  const activeMapping = await resolveActiveLedgers(companyId, 'PROMOTERS')
+  const mappedIds = Array.from(activeMapping.activeLedgerIds)
+
+  if (mappedIds.length === 0) {
+    return {
+      companyId,
+      totalCapital: 0,
+      openingCapital: 0,
+      netMovement: 0,
+      transactionCount: 0,
+      ledgers: [],
+      entriesByLedger: {}
+    }
+  }
+
+  const dbLedgers: any[] = []
+  const rawLines: any[] = []
+  const chunkSize = 50
+  
+  for (let i = 0; i < mappedIds.length; i += chunkSize) {
+    const chunkIds = mappedIds.slice(i, i + chunkSize)
+    
+    // Fetch ledgers for chunk
+    const ledgersResult = await client
+      .from('tb_ledgers')
+      .select('id, name, opening_balance, closing_balance')
+      .eq('company_id', companyId)
+      .in('id', chunkIds)
+      .eq('is_deleted', false)
+      
+    if (ledgersResult.error) {
+      throw new Error(`Could not load Promoters ledgers: ${ledgersResult.error.message}`)
+    }
+    dbLedgers.push(...(ledgersResult.data ?? []))
+
+    // Fetch voucher lines for chunk
+    let page = 0
+    const pageSize = 1000
+    let hasMore = true
+    
+    while (hasMore) {
+      const linesQuery = client
+        .from('tb_ledger_voucher_lines')
+        .select('ledger_id,ledger_name,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,voucher_ledger_entry_id,voucher_id')
+        .eq('company_id', companyId)
+        .in('ledger_id', chunkIds)
+        .order('voucher_date', { ascending: true })
+        .order('voucher_ledger_entry_id', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1)
+
+      if (from) {
+        linesQuery.gte('voucher_date', from)
+      }
+      if (to) {
+        linesQuery.lte('voucher_date', to)
+      }
+
+      const linesResult = await linesQuery
+      if (linesResult.error) {
+        throw new Error(`Could not load Promoters voucher lines: ${linesResult.error.message}`)
+      }
+
+      const pageData = linesResult.data ?? []
+      rawLines.push(...pageData)
+
+      if (pageData.length < pageSize) {
+        hasMore = false
+      } else {
+        page++
+      }
+    }
+  }
+
+  const ledgers: PromoterLedgerPosition[] = dbLedgers.map(l => {
+    const lines = rawLines.filter(line => line.ledger_id === l.id)
+    const totalCredit = lines.reduce((sum, line) => sum + Number(line.credit_amount ?? 0), 0)
+    const totalDebit = lines.reduce((sum, line) => sum + Number(line.debit_amount ?? 0), 0)
+    const net = totalCredit - totalDebit
+
+    return {
+      ledgerId: l.id,
+      ledgerName: l.name,
+      openingBalance: Number(l.opening_balance ?? 0),
+      closingBalance: Number(l.closing_balance ?? 0),
+      netMovement: net
+    }
+  })
+
+  const entriesByLedger: Record<string, PromoterVoucherEntry[]> = {}
+  for (const line of rawLines) {
+    if (!line.ledger_id) continue
+    const entries = entriesByLedger[line.ledger_id] ?? []
+    const debit = Number(line.debit_amount ?? 0)
+    const credit = Number(line.credit_amount ?? 0)
+
+    entries.push({
+      id: line.voucher_ledger_entry_id,
+      voucherId: line.voucher_id,
+      ledgerId: line.ledger_id,
+      date: line.voucher_date,
+      type: line.voucher_type,
+      number: line.voucher_number,
+      particulars: line.particulars ?? 'Unassigned',
+      amount: credit - debit,
+      debit,
+      credit
+    })
+    entriesByLedger[line.ledger_id] = entries
+  }
+
+  const totalCapital = ledgers.reduce((sum, l) => sum + l.closingBalance, 0)
+  const openingCapital = ledgers.reduce((sum, l) => sum + l.openingBalance, 0)
+  const netMovement = ledgers.reduce((sum, l) => sum + l.netMovement, 0)
+
+  return {
+    companyId,
+    totalCapital,
+    openingCapital,
+    netMovement,
+    transactionCount: rawLines.length,
+    ledgers,
+    entriesByLedger
+  }
+}
+// ─── Accounts Payable Report ───────────────────────────────────────────────
+
+export interface AccountsPayableLedgerPosition {
+  ledgerId: string
+  ledgerName: string
+  openingBalance: number
+  closingBalance: number
+  netMovement: number
+}
+
+export interface AccountsPayableVoucherEntry {
+  id: string
+  voucherId: string
+  ledgerId: string
+  date: string
+  type: string
+  number: string
+  particulars: string
+  amount: number
+  debit: number
+  credit: number
+}
+
+export interface AccountsPayableReportData {
+  companyId: string
+  totalPayables: number
+  openingPayables: number
+  netMovement: number
+  transactionCount: number
+  ledgers: AccountsPayableLedgerPosition[]
+  entriesByLedger: Record<string, AccountsPayableVoucherEntry[]>
+}
+
+export async function getAccountsPayableData(companyId: string, from?: string, to?: string): Promise<AccountsPayableReportData> {
+  const client = createNeonDataApiClient()
+  const activeMapping = await resolveActiveLedgers(companyId, 'ACCOUNTS_PAYABLE')
+  const mappedIds = Array.from(activeMapping.activeLedgerIds)
+
+  if (mappedIds.length === 0) {
+    return { companyId, totalPayables: 0, openingPayables: 0, netMovement: 0, transactionCount: 0, ledgers: [], entriesByLedger: {} }
+  }
+
+  const dbLedgers: any[] = []
+  const rawLines: any[] = []
+  const chunkSize = 50
+  
+  for (let i = 0; i < mappedIds.length; i += chunkSize) {
+    const chunkIds = mappedIds.slice(i, i + chunkSize)
+    
+    // Fetch ledgers for chunk
+    const ledgersResult = await client
+      .from('tb_ledgers')
+      .select('id, name, opening_balance, closing_balance')
+      .eq('company_id', companyId)
+      .in('id', chunkIds)
+      .eq('is_deleted', false)
+      
+    if (ledgersResult.error) {
+      throw new Error(`Could not load AP ledgers: ${ledgersResult.error.message}`)
+    }
+    dbLedgers.push(...(ledgersResult.data ?? []))
+
+    // Fetch voucher lines for chunk
+    let page = 0
+    const pageSize = 1000
+    let hasMore = true
+    
+    while (hasMore) {
+      const linesQuery = client
+        .from('tb_ledger_voucher_lines')
+        .select('ledger_id,ledger_name,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,voucher_ledger_entry_id,voucher_id')
+        .eq('company_id', companyId)
+        .in('ledger_id', chunkIds)
+        .order('voucher_date', { ascending: true })
+        .order('voucher_ledger_entry_id', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1)
+
+      if (from) linesQuery.gte('voucher_date', from)
+      if (to) linesQuery.lte('voucher_date', to)
+
+      const linesResult = await linesQuery
+      if (linesResult.error) {
+        throw new Error(`Could not load AP voucher lines: ${linesResult.error.message}`)
+      }
+
+      const pageData = linesResult.data ?? []
+      rawLines.push(...pageData)
+
+      if (pageData.length < pageSize) {
+        hasMore = false
+      } else {
+        page++
+      }
+    }
+  }
+
+  const ledgers: AccountsPayableLedgerPosition[] = dbLedgers.map(l => {
+    const lines = rawLines.filter(line => line.ledger_id === l.id)
+    const totalCredit = lines.reduce((sum, line) => sum + Number(line.credit_amount ?? 0), 0)
+    const totalDebit = lines.reduce((sum, line) => sum + Number(line.debit_amount ?? 0), 0)
+    return {
+      ledgerId: l.id,
+      ledgerName: l.name,
+      openingBalance: Number(l.opening_balance ?? 0),
+      closingBalance: Number(l.closing_balance ?? 0),
+      netMovement: totalCredit - totalDebit,
+    }
+  })
+
+  const entriesByLedger: Record<string, AccountsPayableVoucherEntry[]> = {}
+  for (const line of rawLines) {
+    if (!line.ledger_id) continue
+    const entries = entriesByLedger[line.ledger_id] ?? []
+    const debit = Number(line.debit_amount ?? 0)
+    const credit = Number(line.credit_amount ?? 0)
+    entries.push({
+      id: line.voucher_ledger_entry_id,
+      voucherId: line.voucher_id,
+      ledgerId: line.ledger_id,
+      date: line.voucher_date,
+      type: line.voucher_type,
+      number: line.voucher_number,
+      particulars: line.particulars ?? 'Unassigned',
+      amount: credit - debit,
+      debit,
+      credit,
+    })
+    entriesByLedger[line.ledger_id] = entries
+  }
+
+  const totalPayables = ledgers.reduce((s, l) => s + l.closingBalance, 0)
+  const openingPayables = ledgers.reduce((s, l) => s + l.openingBalance, 0)
+  const netMovement = ledgers.reduce((s, l) => s + l.netMovement, 0)
+
+  return { companyId, totalPayables, openingPayables, netMovement, transactionCount: rawLines.length, ledgers, entriesByLedger }
+}
+
+export interface OperatingExpenditureLedgerPosition {
+  ledgerId: string
+  ledgerName: string
+  openingBalance: number
+  closingBalance: number
+  netMovement: number
+}
+
+export interface OperatingExpenditureVoucherEntry {
+  id: string
+  voucherId: string
+  ledgerId: string
+  date: string
+  type: string
+  number: string
+  particulars: string
+  amount: number
+  debit: number
+  credit: number
+}
+
+export interface OperatingExpenditureReportData {
+  companyId: string
+  totalOpex: number
+  openingOpex: number
+  netMovement: number
+  transactionCount: number
+  ledgers: OperatingExpenditureLedgerPosition[]
+  entriesByLedger: Record<string, OperatingExpenditureVoucherEntry[]>
+}
+
+export async function getOperatingExpenditureReportData(companyId: string, from?: string, to?: string): Promise<OperatingExpenditureReportData> {
+  const client = createNeonDataApiClient()
+  const activeMapping = await resolveActiveLedgers(companyId, 'OPEX')
+  const mappedIds = Array.from(activeMapping.activeLedgerIds)
+
+  if (mappedIds.length === 0) {
+    return { companyId, totalOpex: 0, openingOpex: 0, netMovement: 0, transactionCount: 0, ledgers: [], entriesByLedger: {} }
+  }
+
+  const dbLedgers: any[] = []
+  const rawLines: any[] = []
+  const chunkSize = 50
+  
+  for (let i = 0; i < mappedIds.length; i += chunkSize) {
+    const chunkIds = mappedIds.slice(i, i + chunkSize)
+    
+    // Fetch ledgers for chunk
+    const ledgersResult = await client
+      .from('tb_ledgers')
+      .select('id, name, opening_balance, closing_balance')
+      .eq('company_id', companyId)
+      .in('id', chunkIds)
+      .eq('is_deleted', false)
+      
+    if (ledgersResult.error) {
+      throw new Error(`Could not load Operating Expenditure ledgers: ${ledgersResult.error.message}`)
+    }
+    dbLedgers.push(...(ledgersResult.data ?? []))
+
+    // Fetch voucher lines for chunk
+    let page = 0
+    const pageSize = 1000
+    let hasMore = true
+    
+    while (hasMore) {
+      const linesQuery = client
+        .from('tb_ledger_voucher_lines')
+        .select('ledger_id,ledger_name,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,voucher_ledger_entry_id,voucher_id')
+        .eq('company_id', companyId)
+        .in('ledger_id', chunkIds)
+        .order('voucher_date', { ascending: true })
+        .order('voucher_ledger_entry_id', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1)
+
+      if (from) linesQuery.gte('voucher_date', from)
+      if (to) linesQuery.lte('voucher_date', to)
+
+      const linesResult = await linesQuery
+      if (linesResult.error) {
+        throw new Error(`Could not load Operating Expenditure voucher lines: ${linesResult.error.message}`)
+      }
+
+      const pageData = linesResult.data ?? []
+      rawLines.push(...pageData)
+
+      if (pageData.length < pageSize) {
+        hasMore = false
+      } else {
+        page++
+      }
+    }
+  }
+
+  const ledgers: OperatingExpenditureLedgerPosition[] = dbLedgers.map(l => {
+    const lines = rawLines.filter(line => line.ledger_id === l.id)
+    const totalCredit = lines.reduce((sum, line) => sum + Number(line.credit_amount ?? 0), 0)
+    const totalDebit = lines.reduce((sum, line) => sum + Number(line.debit_amount ?? 0), 0)
+    return {
+      ledgerId: l.id,
+      ledgerName: l.name,
+      openingBalance: Number(l.opening_balance ?? 0),
+      closingBalance: Number(l.closing_balance ?? 0),
+      netMovement: totalDebit - totalCredit,
+    }
+  })
+
+  const entriesByLedger: Record<string, OperatingExpenditureVoucherEntry[]> = {}
+  for (const line of rawLines) {
+    if (!line.ledger_id) continue
+    const entries = entriesByLedger[line.ledger_id] ?? []
+    const debit = Number(line.debit_amount ?? 0)
+    const credit = Number(line.credit_amount ?? 0)
+    entries.push({
+      id: line.voucher_ledger_entry_id,
+      voucherId: line.voucher_id,
+      ledgerId: line.ledger_id,
+      date: line.voucher_date,
+      type: line.voucher_type,
+      number: line.voucher_number,
+      particulars: line.particulars ?? 'Unassigned',
+      amount: debit - credit,
+      debit,
+      credit,
+    })
+    entriesByLedger[line.ledger_id] = entries
+  }
+
+  const totalOpex = ledgers.reduce((s, l) => s + l.closingBalance, 0)
+  const openingOpex = ledgers.reduce((s, l) => s + l.openingBalance, 0)
+  const netMovement = ledgers.reduce((s, l) => s + l.netMovement, 0)
+
+  return { companyId, totalOpex, openingOpex, netMovement, transactionCount: rawLines.length, ledgers, entriesByLedger }
+}
+
+// ─── Duties & Taxes (GST) Report ───────────────────────────────────────────
+
+export function categorizeGstLedger(name: string, parentName?: string): 'INPUT' | 'OUTPUT' | 'OTHER' {
+  const norm = name.toLowerCase()
+  const normParent = (parentName || '').toLowerCase()
+  if (
+    norm.includes('input') || 
+    norm.includes('inward') || 
+    norm.includes('cgst ip') || 
+    norm.includes('sgst ip') || 
+    norm.includes('igst ip') || 
+    norm.includes('itc') || 
+    norm.includes('recov') || 
+    norm.includes('receiv') ||
+    norm.includes('import') ||
+    norm.includes('local') ||
+    normParent.includes('input') ||
+    normParent.includes('import') ||
+    normParent.includes('local')
+  ) {
+    return 'INPUT'
+  }
+  if (
+    norm.includes('output') || 
+    norm.includes('outward') || 
+    norm.includes('cgst op') || 
+    norm.includes('sgst op') || 
+    norm.includes('igst op') || 
+    norm.includes('payable') || 
+    norm.includes('collected') || 
+    norm.includes('liability') ||
+    norm.includes('rcm') ||
+    normParent.includes('output') ||
+    normParent.includes('rcm')
+  ) {
+    return 'OUTPUT'
+  }
+  return 'OTHER'
+}
+
+export function getGstTaxType(name: string): 'CGST' | 'SGST' | 'IGST' | 'UTGST' | 'CESS' | 'OTHER' {
+  const norm = name.toLowerCase()
+  if (norm.includes('cgst') || norm.includes('central')) return 'CGST'
+  if (norm.includes('sgst') || norm.includes('state')) return 'SGST'
+  if (norm.includes('igst') || norm.includes('integrated')) return 'IGST'
+  if (norm.includes('utgst') || norm.includes('union')) return 'UTGST'
+  if (norm.includes('cess')) return 'CESS'
+  return 'OTHER'
+}
+
+export interface GstLedgerPosition {
+  ledgerId: string
+  ledgerName: string
+  parentName: string
+  category: 'INPUT' | 'OUTPUT' | 'OTHER'
+  taxType: 'CGST' | 'SGST' | 'IGST' | 'UTGST' | 'CESS' | 'OTHER'
+  openingBalance: number
+  closingBalance: number
+  netMovement: number
+}
+
+export interface GstVoucherEntry {
+  ledgerId: string
+  ledgerName: string
+  category: 'INPUT' | 'OUTPUT' | 'OTHER'
+  taxType: 'CGST' | 'SGST' | 'IGST' | 'UTGST' | 'CESS' | 'OTHER'
+  voucherId: string
+  date: string
+  voucherType: string
+  voucherNumber: string
+  particulars: string
+  debit: number
+  credit: number
+  netMovement: number
+}
+
+export interface GstReportData {
+  companyId: string
+  totalInput: number
+  totalOutput: number
+  totalOthers: number
+  netPosition: number
+  taxTypes: Array<{
+    type: 'CGST' | 'SGST' | 'IGST' | 'UTGST' | 'CESS' | 'OTHER'
+    input: number
+    output: number
+    net: number
+  }>
+  ledgers: GstLedgerPosition[]
+  monthlyTrends: Array<{
+    month: string
+    input: number
+    output: number
+  }>
+  entries: GstVoucherEntry[]
+}
+
+export async function getGstReportData(companyId: string, from?: string, to?: string): Promise<GstReportData> {
+  const client = createNeonDataApiClient()
+  const activeMapping = await resolveActiveLedgers(companyId, 'GST')
+  const mappedIds = Array.from(activeMapping.activeLedgerIds)
+
+  if (mappedIds.length === 0) {
+    return {
+      companyId,
+      totalInput: 0,
+      totalOutput: 0,
+      totalOthers: 0,
+      netPosition: 0,
+      taxTypes: [],
+      ledgers: [],
+      monthlyTrends: [],
+      entries: [],
+    }
+  }
+
+  const dbLedgers: any[] = []
+  const rawLines: any[] = []
+  const chunkSize = 50
+
+  for (let i = 0; i < mappedIds.length; i += chunkSize) {
+    const chunkIds = mappedIds.slice(i, i + chunkSize)
+
+    const ledgersResult = await client
+      .from('tb_ledgers')
+      .select('id, name, parent_name, opening_balance, closing_balance')
+      .eq('company_id', companyId)
+      .in('id', chunkIds)
+      .eq('is_deleted', false)
+
+    if (ledgersResult.error) {
+      throw new Error(`Could not load GST ledgers: ${ledgersResult.error.message}`)
+    }
+    dbLedgers.push(...(ledgersResult.data ?? []))
+
+    let page = 0
+    const pageSize = 1000
+    let hasMore = true
+
+    while (hasMore) {
+      const linesQuery = client
+        .from('tb_ledger_voucher_lines')
+        .select('ledger_id,ledger_name,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,voucher_ledger_entry_id,voucher_id')
+        .eq('company_id', companyId)
+        .in('ledger_id', chunkIds)
+        .order('voucher_date', { ascending: true })
+        .order('voucher_ledger_entry_id', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1)
+
+      if (from) linesQuery.gte('voucher_date', from)
+      if (to) linesQuery.lte('voucher_date', to)
+
+      const linesResult = await linesQuery
+      if (linesResult.error) {
+        throw new Error(`Could not load GST voucher lines: ${linesResult.error.message}`)
+      }
+
+      const pageData = linesResult.data ?? []
+      rawLines.push(...pageData)
+
+      if (pageData.length < pageSize) {
+        hasMore = false
+      } else {
+        page++
+      }
+    }
+  }
+
+  // Fetch trial balance at to_date to get the dynamic period-end closing balances
+  const toDate = to || null
+  const balanceResult = await client.rpc('tb_trial_balance', {
+    target_company: companyId,
+    from_date: null,
+    to_date: toDate,
+  })
+  
+  if (balanceResult.error) {
+    throw new Error(`Could not load Trial Balance for GST report: ${balanceResult.error.message}`)
+  }
+  
+  const trialBalanceRows = balanceResult.data ?? []
+  const closingBalancesMap = new Map<string, number>()
+  for (const row of trialBalanceRows) {
+    if (row.ledger_id) {
+      closingBalancesMap.set(row.ledger_id, Number(row.closing_balance ?? 0))
+    }
+  }
+
+  const ledgers: GstLedgerPosition[] = dbLedgers.map(l => {
+    const lines = rawLines.filter(line => line.ledger_id === l.id)
+    const totalCredit = lines.reduce((sum, line) => sum + Number(line.credit_amount ?? 0), 0)
+    const totalDebit = lines.reduce((sum, line) => sum + Number(line.debit_amount ?? 0), 0)
+    const category = categorizeGstLedger(l.name, l.parent_name)
+    const taxType = getGstTaxType(l.name)
+
+    let netMovement = 0
+    if (category === 'INPUT') {
+      netMovement = totalDebit - totalCredit
+    } else if (category === 'OUTPUT') {
+      netMovement = totalCredit - totalDebit
+    } else {
+      netMovement = totalDebit - totalCredit
+    }
+
+    const closingBalance = closingBalancesMap.get(l.id) ?? 0
+    const openingBalance = closingBalance + totalDebit - totalCredit
+
+    return {
+      ledgerId: l.id,
+      ledgerName: l.name,
+      parentName: l.parent_name || 'Unassigned',
+      category,
+      taxType,
+      openingBalance,
+      closingBalance,
+      netMovement,
+    }
+  })
+
+  // Calculate tax type summary
+  const taxTypesMap = new Map<'CGST' | 'SGST' | 'IGST' | 'UTGST' | 'CESS' | 'OTHER', { input: number; output: number }>()
+  const validTypes: Array<'CGST' | 'SGST' | 'IGST' | 'UTGST' | 'CESS' | 'OTHER'> = ['CGST', 'SGST', 'IGST', 'UTGST', 'CESS', 'OTHER']
+  
+  for (const t of validTypes) {
+    taxTypesMap.set(t, { input: 0, output: 0 })
+  }
+
+  for (const l of ledgers) {
+    const current = taxTypesMap.get(l.taxType) ?? { input: 0, output: 0 }
+    if (l.category === 'INPUT') {
+      current.input += l.netMovement
+    } else if (l.category === 'OUTPUT') {
+      current.output += l.netMovement
+    }
+    taxTypesMap.set(l.taxType, current)
+  }
+
+  const taxTypes = Array.from(taxTypesMap.entries()).map(([type, { input, output }]) => ({
+    type,
+    input,
+    output,
+    net: input - output,
+  }))
+
+  const totalInput = ledgers.filter(l => l.category === 'INPUT').reduce((s, l) => s + l.netMovement, 0)
+  const totalOutput = ledgers.filter(l => l.category === 'OUTPUT').reduce((s, l) => s + l.netMovement, 0)
+  const totalOthers = ledgers.filter(l => l.category === 'OTHER').reduce((s, l) => s + l.netMovement, 0)
+  const netPosition = totalInput - totalOutput
+
+  // Calculate monthly trends
+  const trendsMap = new Map<string, { month: string; sortKey: string; input: number; output: number }>()
+
+  for (const line of rawLines) {
+    const d = new Date(line.voucher_date)
+    if (isNaN(d.getTime())) continue
+
+    const sortKey = line.voucher_date.slice(0, 7) // "YYYY-MM"
+    const monthName = d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+
+    const trend = trendsMap.get(sortKey) ?? { month: monthName, sortKey, input: 0, output: 0 }
+
+    const category = categorizeGstLedger(line.ledger_name)
+    const debit = Number(line.debit_amount ?? 0)
+    const credit = Number(line.credit_amount ?? 0)
+
+    if (category === 'INPUT') {
+      trend.input += (debit - credit)
+    } else if (category === 'OUTPUT') {
+      trend.output += (credit - debit)
+    }
+
+    trendsMap.set(sortKey, trend)
+  }
+
+  const monthlyTrends = Array.from(trendsMap.values())
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+    .map(({ month, input, output }) => ({ month, input, output }))
+
+  const entries: GstVoucherEntry[] = rawLines.map(line => {
+    const category = categorizeGstLedger(line.ledger_name)
+    const taxType = getGstTaxType(line.ledger_name)
+    const debit = Number(line.debit_amount ?? 0)
+    const credit = Number(line.credit_amount ?? 0)
+
+    let netMovement = 0
+    if (category === 'INPUT') {
+      netMovement = debit - credit
+    } else if (category === 'OUTPUT') {
+      netMovement = credit - debit
+    } else {
+      netMovement = debit - credit
+    }
+
+    return {
+      ledgerId: line.ledger_id,
+      ledgerName: line.ledger_name,
+      category,
+      taxType,
+      voucherId: line.voucher_id,
+      date: line.voucher_date,
+      voucherType: line.voucher_type,
+      voucherNumber: line.voucher_number || '—',
+      particulars: line.particulars || '—',
+      debit,
+      credit,
+      netMovement,
+    }
+  })
+
+  return {
+    companyId,
+    totalInput,
+    totalOutput,
+    totalOthers,
+    netPosition,
+    taxTypes,
+    ledgers,
+    monthlyTrends,
+    entries,
+  }
 }

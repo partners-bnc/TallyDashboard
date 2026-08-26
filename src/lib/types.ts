@@ -16,8 +16,9 @@ export interface Database {
       tb_company_sync_state: Table<{ company_id: string; last_catalog_seen_at: string | null; last_ledger_sync_at: string | null; last_voucher_sync_at: string | null; last_error: string | null; history_baseline_date: string | null; history_earliest_voucher_date: string | null; history_latest_voucher_date: string | null; history_reconciliation_status: string | null; history_reconciled_at: string | null; verification_as_of_date: string | null; verification_status: string | null; verification_completed_at: string | null; updated_at: string }>
       tb_tally_verification_snapshots: Table<{ id: string; org_id: string; company_id: string; ledger_id: string; as_of_date: string; closing_balance: number; synced_at: string }>
       tb_tally_trial_balance_snapshots: Table<{ id: string; org_id: string; company_id: string; as_of_date: string; debit_total: number; credit_total: number; rows: Json; synced_at: string }>
-      tds_ledger_mappings: Table<{ id: string; org_id: string; company_id: string; ledger_id: string; tds_type: string; section_code: string | null; is_payable_ledger: boolean; rounding_tolerance: number; active_from: string; active_to: string | null; liability_voucher_types: string[]; deposit_voucher_types: string[]; journal_treatment: string; created_at: string; updated_at: string }>
       compliance_mapping_profiles: Table<{ id: string; org_id: string; company_id: string; compliance_type: string; status: 'draft' | 'complete'; confirmed_by: string | null; confirmed_at: string | null; created_at: string; updated_at: string }>
+      compliance_group_decisions: Table<{ id: string; profile_id: string; org_id: string; company_id: string; compliance_type: string; group_name: string; selected: boolean; created_at: string; updated_at: string }>
+      compliance_ledger_decisions: Table<{ id: string; profile_id: string; org_id: string; company_id: string; compliance_type: string; ledger_id: string; selected: boolean; category: string | null; confirmed_by: string | null; created_at: string; updated_at: string }>
     }
     Views: {
       tb_ledger_voucher_lines: View<{ company_id: string | null; ledger_id: string | null; ledger_name: string | null; voucher_ledger_entry_id: string | null; line_number: number | null; voucher_id: string | null; voucher_date: string | null; voucher_type: string | null; voucher_number: string | null; particulars: string | null; debit_amount: number | null; credit_amount: number | null; running_balance: number | null }>
@@ -155,12 +156,13 @@ export interface FundsFlowEntry {
   voucherId?: string | null
 }
 
-export interface FundsFlowSubgroup {
-  subgroupName: string
+export interface FundsFlowGroupNode {
+  name: string
   debitTotal: number
   creditTotal: number
   netMovement: number
   closingBalance: number
+  subgroups: FundsFlowGroupNode[]
   ledgers: FundsFlowLedger[]
   voucherLines: FundsFlowEntry[]
 }
@@ -170,7 +172,8 @@ export interface FundsFlowGroup {
   debitTotal: number
   creditTotal: number
   netMovement: number
-  subgroups: FundsFlowSubgroup[]
+  closingBalance: number
+  subgroups: FundsFlowGroupNode[]
 }
 
 export interface FundsFlowSummary {

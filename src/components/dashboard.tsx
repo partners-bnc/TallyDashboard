@@ -4,10 +4,11 @@ import { useMemo, useState, useTransition, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@astryxdesign/core/Button'
-import { ArrowUpRight, ArrowsClockwise, CaretDown, ChartLineUp, MagnifyingGlass, Receipt, TrendUp, TrendDown, Scales, X, Buildings, ArrowsLeftRight, ChartBar, Clock, Notebook, ShieldCheck } from '@phosphor-icons/react'
+import { ArrowUpRight, ArrowsClockwise, CaretDown, ChartLineUp, MagnifyingGlass, Receipt, TrendUp, TrendDown, Scales, X, Buildings, ArrowsLeftRight, ChartBar, Clock, Notebook, ShieldCheck, User } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Company, DashboardData, Organization, TdsReportData } from '@/lib/types'
+import type { PromotersReportData, GstReportData } from '@/lib/data'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
 import styles from './dashboard.module.css'
@@ -33,7 +34,7 @@ function tdsReportHref(org: string | null, company: string | null, ledger: strin
   params.set('lockLedger', 'true')
   if (from) params.set('from', from)
   if (to) params.set('to', to)
-  return `/dashboard/tds-report?${params.toString()}`
+  return `/dashboard/reports/tds-report?${params.toString()}`
 }
 
 function Metric({
@@ -78,6 +79,8 @@ export function Dashboard({
   selectedCompanyId,
   data,
   tdsData,
+  promoterData,
+  gstData,
   from,
   to
 }: {
@@ -87,6 +90,8 @@ export function Dashboard({
   selectedCompanyId: string | null
   data: DashboardData | null
   tdsData: TdsReportData | null
+  promoterData: PromotersReportData | null
+  gstData: GstReportData | null
   from: string
   to: string
 }) {
@@ -102,7 +107,8 @@ export function Dashboard({
   
   const filteredLedgers = useMemo(() => {
     return data?.ledgers.filter((ledger) => {
-      const matchesLedger = ledger.name.toLowerCase().includes(ledgerSearch.toLowerCase())
+      const qLedger = ledgerSearch.toLowerCase()
+      const matchesLedger = ledger.name.toLowerCase().includes(qLedger) || ledger.id.toLowerCase().includes(qLedger)
       const matchesGroup = (ledger.parent_name ?? '').toLowerCase().includes(groupSearch.toLowerCase())
       return matchesLedger && matchesGroup
     }) ?? []
@@ -230,7 +236,7 @@ export function Dashboard({
                             const params = new URLSearchParams({ org: selectedOrganizationId ?? '', company: selectedCompanyId })
                             if (from) params.set('from', from)
                             if (to) params.set('to', to)
-                            window.location.assign(`/dashboard/tds-report?${params.toString()}`)
+                            window.location.assign(`/dashboard/reports/tds-report?${params.toString()}`)
                           }}
                         >
                           TDS Report
@@ -332,21 +338,53 @@ export function Dashboard({
                 </article>
 
                 <article className={`${styles.panel} ${styles.types}`}>
-                  <div className={styles.panelHeader}>
+                  <div className={styles.panelHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
                     <div>
                       <span className={styles.eyebrow}>Composition</span>
                       <div className="flex items-center gap-2 mt-1">
-                        <ChartBar size={20} className="text-slate-900 flex-shrink-0" />
-                        <h2>Voucher types</h2>
+                        <User size={20} className="text-slate-900 flex-shrink-0" />
+                        <h2>Promoters Summary</h2>
                       </div>
                     </div>
+                    {selectedCompanyId && (
+                      <Link
+                        href={`/dashboard/reports/promoters-report?org=${selectedOrganizationId ?? ''}&company=${selectedCompanyId ?? ''}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`}
+                        className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-100 dark:hover:bg-amber-950/40 rounded-lg transition-colors border border-amber-100 dark:border-amber-900/50 cursor-pointer"
+                        style={{ alignSelf: 'center' }}
+                      >
+                        <ArrowUpRight size={12} weight="bold" />
+                        Audit
+                      </Link>
+                    )}
                   </div>
-                  {data?.voucherTypes.length ? (
-                    <div className={styles.barChart}>
-                      <ResponsiveContainer width="100%" height="100%"><BarChart data={data.voucherTypes} layout="vertical" margin={{ left: 0, right: 8 }}><XAxis type="number" hide /><YAxis type="category" dataKey="type" width={78} tickLine={false} axisLine={false} tick={{ fill: 'var(--foreground)', fontSize: 11 }} /><Tooltip cursor={{ fill: 'var(--accent-soft)' }} contentStyle={{ border: '1px solid var(--rule)', borderRadius: 10, background: 'var(--paper)' }} /><Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} barSize={16} /></BarChart></ResponsiveContainer>
+                  {promoterData && promoterData.ledgers.length > 0 ? (
+                    <div className="flex flex-col gap-3">
+                      {/* Summary Metrics */}
+                      <div className="grid grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <div>
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Funding</span>
+                          <strong className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-0.5 block">{money.format(promoterData.totalCapital)}</strong>
+                        </div>
+                        <div>
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Net Movement</span>
+                          <strong className={`text-sm font-bold mt-0.5 block ${promoterData.netMovement >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {promoterData.netMovement >= 0 ? '+' : ''}{money.format(promoterData.netMovement)}
+                          </strong>
+                        </div>
+                      </div>
+                      
+                      {/* Small Ledgers List */}
+                      <div className="overflow-y-auto max-h-[200px] pr-1 space-y-1.5">
+                        {promoterData.ledgers.map((l) => (
+                          <div key={l.ledgerId} className="flex justify-between items-center text-xs border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                            <span className="truncate pr-2 font-medium text-slate-600 dark:text-slate-400">{l.ledgerName}</span>
+                            <strong className="text-slate-800 dark:text-slate-200 flex-shrink-0">{money.format(l.closingBalance)}</strong>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
-                    <EmptyPanel title="No voucher mix" detail="Voucher type analysis will appear after synchronization." />
+                    <EmptyPanel title="No promoters data" detail="Promoters & Unsecured Loans summary will appear after mapping." />
                   )}
                 </article>
               </section>
@@ -362,7 +400,7 @@ export function Dashboard({
                       </div>
                     </div>
                     <Link
-                      href={`/dashboard/tds-report?org=${selectedOrganizationId ?? ''}&company=${selectedCompanyId ?? ''}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}&ledger=all`}
+                      href={`/dashboard/reports/tds-report?org=${selectedOrganizationId ?? ''}&company=${selectedCompanyId ?? ''}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}&ledger=all`}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg transition-colors border border-blue-100 dark:border-blue-900/50 cursor-pointer"
                       style={{ alignSelf: 'center' }}
                     >
@@ -424,6 +462,102 @@ export function Dashboard({
                 </article>
               </section>
 
+              <section className={styles.gridLower} style={{ marginTop: 24 }}>
+                <article className={styles.panel} style={{ gridColumn: 'span 2' }}>
+                  <div className={styles.panelHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                    <div>
+                      <span className={styles.eyebrow}>Tax Compliance</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <ShieldCheck size={20} className="text-slate-900 flex-shrink-0" />
+                        <h2>Duties & Taxes (GST)</h2>
+                      </div>
+                    </div>
+                    <Link
+                      href={`/dashboard/reports/duties-and-taxes?org=${selectedOrganizationId ?? ''}&company=${selectedCompanyId ?? ''}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/20 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-900/50 cursor-pointer"
+                      style={{ alignSelf: 'center' }}
+                    >
+                      <ArrowUpRight size={14} weight="bold" />
+                      View Audit
+                    </Link>
+                  </div>
+                  {gstData && gstData.ledgers.length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginTop: 16 }}>
+                      {/* Left: Summary Metrics & Mini Classification Table */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                          <div style={{ background: 'var(--bg-sidebar, #f8fafc)', border: '1px solid var(--rule, #e2e8f0)', borderRadius: 12, padding: 12 }}>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted, #64748b)', textTransform: 'uppercase' }}>Input GST (ITC)</span>
+                            <strong style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#16a34a', marginTop: 4 }}>{money.format(gstData.totalInput)}</strong>
+                          </div>
+                          <div style={{ background: 'var(--bg-sidebar, #f8fafc)', border: '1px solid var(--rule, #e2e8f0)', borderRadius: 12, padding: 12 }}>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted, #64748b)', textTransform: 'uppercase' }}>Output GST</span>
+                            <strong style={{ display: 'block', fontSize: 16, fontWeight: 800, color: '#ef4444', marginTop: 4 }}>{money.format(gstData.totalOutput)}</strong>
+                          </div>
+                          <div style={{ background: 'var(--bg-sidebar, #f8fafc)', border: '1px solid var(--rule, #e2e8f0)', borderRadius: 12, padding: 12 }}>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted, #64748b)', textTransform: 'uppercase' }}>Net Position</span>
+                            <strong style={{ display: 'block', fontSize: 16, fontWeight: 800, color: gstData.netPosition >= 0 ? '#16a34a' : '#ef4444', marginTop: 4 }}>
+                              {money.format(Math.abs(gstData.netPosition))}
+                            </strong>
+                            <span style={{ fontSize: 8, fontWeight: 600, color: gstData.netPosition >= 0 ? '#15803d' : '#b45309' }}>
+                              {gstData.netPosition >= 0 ? 'Refundable' : 'Payable'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Miniature Classification Table */}
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid var(--rule, #e2e8f0)', textAlign: 'left', color: 'var(--muted, #64748b)' }}>
+                                <th style={{ padding: '6px 4px' }}>Tax Type</th>
+                                <th style={{ padding: '6px 4px', textAlign: 'right' }}>Input</th>
+                                <th style={{ padding: '6px 4px', textAlign: 'right' }}>Output</th>
+                                <th style={{ padding: '6px 4px', textAlign: 'right' }}>Net</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {gstData.taxTypes.slice(0, 3).map((t) => (
+                                <tr key={t.type} style={{ borderBottom: '1px solid var(--rule, #f1f5f9)', color: 'var(--foreground, #334155)' }}>
+                                  <td style={{ padding: '6px 4px', fontWeight: 600 }}>{t.type}</td>
+                                  <td style={{ padding: '6px 4px', textAlign: 'right', color: '#16a34a' }}>{money.format(t.input)}</td>
+                                  <td style={{ padding: '6px 4px', textAlign: 'right', color: '#ef4444' }}>{money.format(t.output)}</td>
+                                  <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 700, color: t.net >= 0 ? '#16a34a' : '#ef4444' }}>
+                                    {money.format(Math.abs(t.net))} {t.net >= 0 ? 'Dr' : 'Cr'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Right: Small Bar Chart */}
+                      <div style={{ height: 180 }}>
+                        {gstData.monthlyTrends.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={gstData.monthlyTrends} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                              <CartesianGrid vertical={false} stroke="var(--rule, #f1f5f9)" />
+                              <XAxis dataKey="month" tickLine={false} axisLine={false} style={{ fontSize: '10px', fill: 'var(--muted, #64748b)' }} />
+                              <YAxis tickLine={false} axisLine={false} style={{ fontSize: '10px', fill: 'var(--muted, #64748b)' }} tickFormatter={(v) => compact.format(v)} />
+                              <Tooltip formatter={(value) => money.format(Number(value))} />
+                              <Bar name="Input" dataKey="input" fill="#10b981" radius={[3, 3, 0, 0]} />
+                              <Bar name="Output" dataKey="output" fill="var(--accent, #6366f1)" radius={[3, 3, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted, #64748b)', fontSize: 12 }}>
+                            No monthly transaction data available.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <EmptyPanel title="No Duties & Taxes mapped" detail="GST summary & trends will appear after mapping GST groups." />
+                  )}
+                </article>
+              </section>
+
               <section className={`${styles.panel} ${styles.ledgerPanel}`}>
                 <div className={styles.ledgerPanelHeader}>
                   <div>
@@ -435,7 +569,7 @@ export function Dashboard({
                   </div>
                   <div className="flex flex-wrap items-center gap-3 justify-end">
                     <span className={styles.ledgerCount}>
-                      {data ? `${data.ledgers.length} ledgers` : '0 ledgers'}
+                      {data ? `${filteredLedgers.length} ledgers ${filteredLedgers.length !== data.ledgers.length ? '(filtered)' : ''}` : '0 ledgers'}
                     </span>
                     <div className="flex items-center gap-2">
                       <div className={`${styles.search} ${styles.searchSmall}`}>

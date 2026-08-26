@@ -84,7 +84,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
   }), [data, from, ledger, showCleared, status, to, selectedMonth])
 
   const selected = visibleRows.find((row) => row.id === selectedId) ?? null
-  const applyDates = () => startTransition(() => router.push(`/dashboard/tds-report?${query({ org: orgId, company: companyId, from: draftFrom, to: draftTo, ledger: ledger === 'all' ? undefined : ledger })}`))
+  const applyDates = () => startTransition(() => router.push(`/dashboard/reports/tds-report?${query({ org: orgId, company: companyId, from: draftFrom, to: draftTo, ledger: ledger === 'all' ? undefined : ledger })}`))
   
   const monthOptions = useMemo(() => {
     if (!data?.rows) return [{ label: 'All months', value: 'all' }]
@@ -133,7 +133,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
             <div className="flex items-center gap-3">
               <Link
                 as={NextLink}
-                href={`/dashboard/compliance-mapping?${query({ org: orgId, company: companyId, returnTo: `/dashboard/tds-report?${query({ org: orgId, company: companyId, from, to })}` })}`}
+                href={`/dashboard/compliance-mapping?${query({ org: orgId, company: companyId, returnTo: `/dashboard/reports/tds-report?${query({ org: orgId, company: companyId, from, to })}` })}`}
                 isStandalone
               >
                 Manage TDS mapping

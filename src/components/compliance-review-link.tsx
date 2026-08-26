@@ -23,7 +23,7 @@ export function ComplianceReviewLink({ orgId, companyId }: { orgId: string | nul
   return (
     <HStack gap={1.5} vAlign="center">
       <Link as={NextLink} href={`/dashboard/compliance-mapping?org=${encodeURIComponent(orgId)}&company=${encodeURIComponent(companyId)}`} isStandalone>
-        TDS mapping
+        Report mapping
       </Link>
       {reviewRequiredCount > 0 && <Badge variant="warning" label={reviewRequiredCount} />}
     </HStack>

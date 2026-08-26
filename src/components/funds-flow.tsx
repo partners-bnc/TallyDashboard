@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ArrowUpRight, ArrowsClockwise, CaretDown, Download, Scales, SpinnerGap, X } from '@phosphor-icons/react'
-import type { Company, FundsFlowData, Organization, FundsFlowEntry } from '@/lib/types'
+import type { Company, FundsFlowData, FundsFlowGroupNode, Organization, FundsFlowEntry } from '@/lib/types'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
 // @ts-ignore
@@ -64,12 +64,17 @@ export function FundsFlow({
   const [activeTab, setActiveTab] = useState<string>('summary')
   const [summaryMode, setSummaryMode] = useState<'groups' | 'subgroups'>('groups')
   const [navigating, setNavigating] = useState(false)
-  const [selectedSubgroup, setSelectedSubgroup] = useState<string>('all')
+  const [selectedPath, setSelectedPath] = useState<string[]>([])
   const [selectedLedger, setSelectedLedger] = useState<string | null>(null)
-  
+
   const [selectedVoucherId, setSelectedVoucherId] = useState<string | null>(null)
   const [voucherDetail, setVoucherDetail] = useState<any>(null)
   const [voucherError, setVoucherError] = useState('')
+
+  useEffect(() => {
+    setSelectedPath([])
+    setSelectedLedger(null)
+  }, [activeTab])
 
   useEffect(() => {
     if (!selectedVoucherId) return
@@ -116,15 +121,26 @@ export function FundsFlow({
     // If summaryMode is subgroups, export with nested subgroups!
     if (summaryMode === 'subgroups') {
       data.groups.forEach(g => {
+        // Skip groups that have zero balances/movements in the Summary sheet
+        if (Math.abs(g.closingBalance) <= 0.005 && Math.abs(g.debitTotal) <= 0.005 && Math.abs(g.creditTotal) <= 0.005) {
+          return
+        }
+        
         summaryRows.push([g.groupName.toUpperCase(), '', '', ''])
-        g.subgroups.forEach(sub => {
-          summaryRows.push([
-            `  ${sub.subgroupName}`,
-            sub.debitTotal || 0,
-            sub.creditTotal || 0,
-            sub.netMovement || 0
-          ])
-        })
+        
+        const addSubgroups = (subgroups: FundsFlowGroupNode[], prefix = '  ') => {
+          subgroups.forEach(sub => {
+            summaryRows.push([
+              `${prefix}${sub.name}`,
+              sub.debitTotal || 0,
+              sub.creditTotal || 0,
+              sub.netMovement || 0
+            ])
+            if (sub.subgroups.length > 0) addSubgroups(sub.subgroups, prefix + '  ')
+          })
+        }
+        addSubgroups(g.subgroups)
+
         summaryRows.push([
           `${g.groupName} Total`,
           g.debitTotal || 0,
@@ -148,7 +164,7 @@ export function FundsFlow({
     summaryRows.push(['Grand Total', data.summary.totalDebits || 0, data.summary.totalCredits || 0, data.summary.netMovement || 0])
 
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows)
-    
+
     // Auto-fit column widths for Summary
     wsSummary['!cols'] = [
       { wch: 38 }, // Group/Subgroup name
@@ -167,7 +183,7 @@ export function FundsFlow({
 
         cell.s = {
           font: { name: 'Segoe UI', sz: 10, color: { rgb: '333333' } },
-          alignment: { 
+          alignment: {
             horizontal: colIndex === 0 ? 'left' : 'right',
             vertical: 'center'
           }
@@ -267,18 +283,18 @@ export function FundsFlow({
         [`Company: ${companyName} | Upto ${to || 'today'}`],
         [],
       ]
-      
-      g.subgroups.forEach(sub => {
-        rows.push([`SUBGROUP: ${sub.subgroupName.toUpperCase()}`])
+
+      const flattenGroup = (node: FundsFlowGroupNode) => {
+        rows.push([`SUBGROUP: ${node.name.toUpperCase()}`])
         rows.push(['Date', 'Particulars', 'Nature / Group', 'Debit', 'Credit', 'Amount'])
-        
+
         // Ledgers listing under Subgroup
-        sub.ledgers.forEach(led => {
+        node.ledgers.forEach(led => {
           rows.push(['', `${led.ledgerName} (Closing Balance)`, '', '', '', led.closingBalance || 0])
         })
-        
+
         // Vouchers listing under Subgroup
-        sub.voucherLines.forEach(l => {
+        node.voucherLines.forEach(l => {
           rows.push([
             l.date || '',
             l.particulars,
@@ -288,14 +304,18 @@ export function FundsFlow({
             l.amount || 0
           ])
         })
-        rows.push(['Subtotal Movement', '', '', sub.debitTotal || 0, sub.creditTotal || 0, sub.netMovement || 0])
+        rows.push(['Subtotal Movement', '', '', node.debitTotal || 0, node.creditTotal || 0, node.netMovement || 0])
         rows.push([])
-      })
-      
+
+        node.subgroups.forEach(sub => flattenGroup(sub))
+      }
+
+      g.subgroups.forEach(sub => flattenGroup(sub))
+
       rows.push(['Overall Total Movement', '', '', g.debitTotal || 0, g.creditTotal || 0, g.netMovement || 0])
-      
+
       const wsGroup = XLSX.utils.aoa_to_sheet(rows)
-      
+
       // Auto-fit column widths for Group sheet
       wsGroup['!cols'] = [
         { wch: 14 }, // Date
@@ -412,7 +432,7 @@ export function FundsFlow({
     const cleanToDate = (to || 'latest').replace(/[\/\\?%*:|"<>\s]/g, '_')
     const cleanCompanyName = companyName.replace(/[\/\\?%*:|"<>\s]/g, '_')
     const fileName = `${cleanCompanyName}_Funds_Flow_${cleanToDate}.xlsx`
-    
+
     XLSX.writeFile(wb, fileName)
   }
 
@@ -433,7 +453,7 @@ export function FundsFlow({
               <h1>Funds Flow Statement</h1>
               <p>{companyName} · {orgName} · Upto {to || 'today'}</p>
             </div>
-            
+
             <div className="flex items-end gap-2 flex-wrap">
               <button className={styles.exportButton} onClick={exportToExcel} disabled={!data}>
                 <Download size={16} /> Export to Excel
@@ -451,14 +471,12 @@ export function FundsFlow({
             <button
               onClick={() => {
                 setActiveTab('summary')
-                setSelectedSubgroup('all')
                 setSelectedLedger(null)
               }}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-                activeTab === 'summary'
-                  ? 'bg-accent text-white shadow-sm'
-                  : 'text-muted hover:text-foreground hover:bg-accent-soft'
-              }`}
+              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${activeTab === 'summary'
+                ? 'bg-accent text-white shadow-sm'
+                : 'text-muted hover:text-foreground hover:bg-accent-soft'
+                }`}
             >
               Summary Sheet
             </button>
@@ -471,7 +489,6 @@ export function FundsFlow({
                 onChange={(e) => {
                   if (e.target.value) {
                     setActiveTab(e.target.value)
-                    setSelectedSubgroup('all')
                     setSelectedLedger(null)
                   }
                 }}
@@ -489,33 +506,88 @@ export function FundsFlow({
                 })}
               </select>
             </div>
-            {/* Subgroup Dropdown */}
+            {/* Cascading Subgroup Dropdowns */}
             {activeTab !== 'summary' && (() => {
               const activeGroup = data?.groups.find(g => g.groupName === activeTab)
-              if (!activeGroup || activeGroup.subgroups.length <= 1) return null
-              return (
-                <>
+              if (!activeGroup) return null
+
+              const dropdowns: React.ReactNode[] = []
+
+              // Level 1 Subgroups dropdown
+              const level1Options = activeGroup.subgroups.map(s => s.name)
+              const level1Selected = selectedPath[0] || 'all'
+
+              dropdowns.push(
+                <div key="level-1" className="flex items-center gap-2">
                   <div className="h-4 w-px bg-rule" />
-                  <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted font-semibold">Subgroup:</span>
+                  <select
+                    className="bg-paper border border-rule rounded-lg px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:border-accent cursor-pointer"
+                    value={level1Selected}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === 'all') {
+                        setSelectedPath([])
+                      } else {
+                        setSelectedPath([val])
+                      }
+                      setSelectedLedger(null)
+                    }}
+                  >
+                    <option value="all">All Subgroups</option>
+                    {level1Options.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+              )
+
+              // Cascade next levels
+              let currentNode: FundsFlowGroupNode | undefined = undefined
+              if (level1Selected !== 'all') {
+                currentNode = activeGroup.subgroups.find(s => s.name === level1Selected)
+              }
+
+              let depth = 1
+              while (currentNode && currentNode.subgroups.length > 0) {
+                const currentDepth = depth
+                const options = currentNode.subgroups.map(s => s.name)
+                const selectedVal = selectedPath[currentDepth] || 'all'
+
+                dropdowns.push(
+                  <div key={`level-${currentDepth + 1}`} className="flex items-center gap-2">
+                    <div className="h-4 w-px bg-rule" />
                     <span className="text-xs text-muted font-semibold">Subgroup:</span>
                     <select
                       className="bg-paper border border-rule rounded-lg px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:border-accent cursor-pointer"
-                      value={selectedSubgroup}
+                      value={selectedVal}
                       onChange={(e) => {
-                        setSelectedSubgroup(e.target.value)
+                        const val = e.target.value
+                        const newPath = selectedPath.slice(0, currentDepth)
+                        if (val !== 'all') {
+                          newPath.push(val)
+                        }
+                        setSelectedPath(newPath)
                         setSelectedLedger(null)
                       }}
                     >
                       <option value="all">All Subgroups</option>
-                      {activeGroup.subgroups.map(sub => (
-                        <option key={sub.subgroupName} value={sub.subgroupName}>
-                          {sub.subgroupName}
-                        </option>
+                      {options.map(name => (
+                        <option key={name} value={name}>{name}</option>
                       ))}
                     </select>
                   </div>
-                </>
-              )
+                )
+
+                if (selectedVal !== 'all') {
+                  currentNode = currentNode.subgroups.find(s => s.name === selectedVal)
+                  depth++
+                } else {
+                  break
+                }
+              }
+
+              return dropdowns
             })()}
           </div>
 
@@ -526,7 +598,7 @@ export function FundsFlow({
             <div className={styles.state}>{data.history.message ?? 'History is not available for this date.'}</div>
           ) : (
             <section className={styles.reportContent}>
-              
+
               {/* Summary Sheet Tab */}
               {activeTab === 'summary' && (
                 <div className={styles.singleSummaryWrap}>
@@ -536,21 +608,19 @@ export function FundsFlow({
                     <div className="flex bg-accent-soft p-1 rounded-lg border border-rule">
                       <button
                         onClick={() => setSummaryMode('groups')}
-                        className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                          summaryMode === 'groups'
-                            ? 'bg-accent text-white shadow-sm'
-                            : 'text-muted hover:text-foreground'
-                        }`}
+                        className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${summaryMode === 'groups'
+                          ? 'bg-accent text-white shadow-sm'
+                          : 'text-muted hover:text-foreground'
+                          }`}
                       >
                         Groups Only
                       </button>
                       <button
                         onClick={() => setSummaryMode('subgroups')}
-                        className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                          summaryMode === 'subgroups'
-                            ? 'bg-accent text-white shadow-sm'
-                            : 'text-muted hover:text-foreground'
-                        }`}
+                        className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${summaryMode === 'subgroups'
+                          ? 'bg-accent text-white shadow-sm'
+                          : 'text-muted hover:text-foreground'
+                          }`}
                       >
                         With Subgroups
                       </button>
@@ -564,63 +634,88 @@ export function FundsFlow({
                       <span>Total Credits (Inflows)</span>
                       <span>Net Movement</span>
                     </div>
-                    
+
                     {summaryMode === 'groups' ? (
-                      data.summary.groups.map((g, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`${styles.rowUnified} ${styles.drillableRow}`}
-                          onClick={() => {
-                            setActiveTab(g.groupName)
-                          }}
-                        >
-                          <span className={styles.particularLabel}>{g.groupName}</span>
-                          <span className="text-right text-red-600 font-medium">{formatVal(g.debitTotal)}</span>
-                          <span className="text-right text-green-600 font-medium">{formatVal(g.creditTotal)}</span>
-                          <span className={`text-right font-semibold ${g.netMovement >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                            {formatVal(g.netMovement)}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      data.groups.map((g, idx) => (
-                        <div key={idx}>
-                          {/* Primary Group Header Row */}
-                          <div 
-                            className={`${styles.rowUnifiedPrimary} ${styles.drillableRow}`}
-                            onClick={() => setActiveTab(g.groupName)}
+                      data.summary.groups
+                        .filter(g => Math.abs(g.debitTotal) > 0.005 || Math.abs(g.creditTotal) > 0.005 || Math.abs(g.netMovement) > 0.005)
+                        .map((g, idx) => (
+                          <div
+                            key={idx}
+                            className={`${styles.rowUnified} ${styles.drillableRow}`}
+                            onClick={() => {
+                              setActiveTab(g.groupName)
+                            }}
                           >
-                            <span className="font-bold text-foreground">{g.groupName}</span>
-                            <span className="text-right text-muted">—</span>
-                            <span className="text-right text-muted">—</span>
-                            <span className="text-right text-muted">—</span>
-                          </div>
-                          
-                          {/* Nested Subgroups */}
-                          {g.subgroups.map((sub, sidx) => (
-                            <div key={sidx} className={styles.rowUnifiedSubgroup}>
-                              <span className="pl-6 text-muted font-medium">{sub.subgroupName}</span>
-                              <span className="text-right text-red-600 font-medium">{sub.debitTotal > 0 ? formatVal(sub.debitTotal) : '—'}</span>
-                              <span className="text-right text-green-600 font-medium">{sub.creditTotal > 0 ? formatVal(sub.creditTotal) : '—'}</span>
-                              <span className={`text-right font-medium ${sub.netMovement >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                {formatVal(sub.netMovement)}
+                            <span className={`${styles.particularLabel} flex items-center gap-2`}>
+                              {g.groupName}
+                              <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md leading-none font-normal">
+                                {(data.groups.find(x => x.groupName === g.groupName)?.subgroups ?? []).reduce((sum, sub) => sum + sub.ledgers.length + sub.subgroups.reduce((s2, sub2) => s2 + sub2.ledgers.length, 0), 0)} A/Cs
                               </span>
-                            </div>
-                          ))}
-                          
-                          {/* Group Total Row */}
-                          <div className={styles.rowUnifiedTotal}>
-                            <span className="font-semibold text-foreground">{g.groupName} Total</span>
-                            <span className="text-right text-red-700 font-semibold">{g.debitTotal > 0 ? formatVal(g.debitTotal) : '—'}</span>
-                            <span className="text-right text-green-700 font-semibold">{g.creditTotal > 0 ? formatVal(g.creditTotal) : '—'}</span>
-                            <span className={`text-right font-bold ${g.netMovement >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+                            </span>
+                            <span className="text-right text-red-600 font-medium">{formatVal(g.debitTotal)}</span>
+                            <span className="text-right text-green-600 font-medium">{formatVal(g.creditTotal)}</span>
+                            <span className={`text-right font-semibold ${g.netMovement >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                               {formatVal(g.netMovement)}
                             </span>
                           </div>
-                        </div>
-                      ))
+                        ))
+                    ) : (
+                      data.groups
+                        .filter(g => Math.abs(g.debitTotal) > 0.005 || Math.abs(g.creditTotal) > 0.005 || Math.abs(g.netMovement) > 0.005)
+                        .map((g, idx) => (
+                          <div key={idx}>
+                            {/* Primary Group Header Row */}
+                            <div
+                              className={`${styles.rowUnifiedPrimary} ${styles.drillableRow}`}
+                              onClick={() => setActiveTab(g.groupName)}
+                            >
+                              <span className="font-bold text-foreground flex items-center gap-2">
+                                {g.groupName}
+                                <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-md leading-none font-medium">
+                                  {g.subgroups.reduce((sum, sub) => sum + sub.ledgers.length + sub.subgroups.reduce((s2, sub2) => s2 + sub2.ledgers.length, 0), 0)} A/Cs
+                                </span>
+                              </span>
+                              <span className="text-right text-muted">—</span>
+                              <span className="text-right text-muted">—</span>
+                              <span className="text-right text-muted">—</span>
+                            </div>
+
+                            {/* Nested Subgroups */}
+                            {(() => {
+                              const renderSummarySubgroups = (subgroups: FundsFlowGroupNode[], depth = 0): React.ReactNode[] => {
+                                return subgroups.flatMap((sub, sidx) => [
+                                  <div key={sub.name + sidx} className={styles.rowUnifiedSubgroup}>
+                                    <span className="text-muted font-medium flex items-center gap-2" style={{ paddingLeft: `${depth * 16 + 24}px` }}>
+                                      {sub.name}
+                                      <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md leading-none font-normal">
+                                        {sub.ledgers.length + sub.subgroups.reduce((sum, s) => sum + s.ledgers.length, 0)} A/Cs
+                                      </span>
+                                    </span>
+                                    <span className="text-right text-red-600 font-medium">{sub.debitTotal > 0 ? formatVal(sub.debitTotal) : '—'}</span>
+                                    <span className="text-right text-green-600 font-medium">{sub.creditTotal > 0 ? formatVal(sub.creditTotal) : '—'}</span>
+                                    <span className={`text-right font-medium ${sub.netMovement >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                      {formatVal(sub.netMovement)}
+                                    </span>
+                                  </div>,
+                                  ...(sub.subgroups.length > 0 ? renderSummarySubgroups(sub.subgroups, depth + 1) : [])
+                                ])
+                              }
+                              return renderSummarySubgroups(g.subgroups)
+                            })()}
+
+                            {/* Group Total Row */}
+                            <div className={styles.rowUnifiedTotal}>
+                              <span className="font-semibold text-foreground">{g.groupName} Total</span>
+                              <span className="text-right text-red-700 font-semibold">{g.debitTotal > 0 ? formatVal(g.debitTotal) : '—'}</span>
+                              <span className="text-right text-green-700 font-semibold">{g.creditTotal > 0 ? formatVal(g.creditTotal) : '—'}</span>
+                              <span className={`text-right font-bold ${g.netMovement >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+                                {formatVal(g.netMovement)}
+                              </span>
+                            </div>
+                          </div>
+                        ))
                     )}
-                    
+
                     <div className={styles.totalRowUnified}>
                       <strong>Total Movement</strong>
                       <strong className="text-right text-red-700">{formatVal(data.summary.totalDebits)}</strong>
@@ -638,40 +733,50 @@ export function FundsFlow({
                 (() => {
                   const activeGroup = data.groups.find(g => g.groupName === activeTab)
                   if (!activeGroup) return <div className={styles.noDataRow}>No details found.</div>
-                  
-                  // Filter subgroups list if one specific subgroup is selected
-                  const subgroupsToRender = selectedSubgroup === 'all' 
-                    ? activeGroup.subgroups 
-                    : activeGroup.subgroups.filter(sub => sub.subgroupName === selectedSubgroup)
-                    
+
+                  // Resolve targetNode recursively based on selectedPath
+                  let targetNode: FundsFlowGroupNode | undefined = undefined
+                  if (selectedPath.length > 0) {
+                    let curr: FundsFlowGroupNode | undefined = activeGroup.subgroups.find(s => s.name === selectedPath[0])
+                    for (let i = 1; i < selectedPath.length; i++) {
+                      if (curr) {
+                        curr = curr.subgroups.find(s => s.name === selectedPath[i])
+                      }
+                    }
+                    targetNode = curr
+                  }
+
+                  const subgroupsToRender = targetNode ? [targetNode] : activeGroup.subgroups
+                  const isFilteredView = selectedPath.length > 0
+
                   return (
                     <div className="flex flex-col gap-8">
                       {subgroupsToRender.map((sub, sidx) => {
-                        // If selectedSubgroup is not 'all', we allow ledger selection/filtering within this subgroup
-                        const isFilteredView = selectedSubgroup !== 'all'
-                        
                         // Filter voucher lines for this subgroup if a specific ledger is selected
                         const displayVouchers = (isFilteredView && selectedLedger)
                           ? sub.voucherLines.filter(line => line.nature === selectedLedger)
                           : sub.voucherLines
-                          
+
                         // Calculate display voucher totals
                         const displayDebitTotal = displayVouchers.reduce((sum, line) => sum + (line.debit || 0), 0)
                         const displayCreditTotal = displayVouchers.reduce((sum, line) => sum + (line.credit || 0), 0)
                         const displayNetMovement = displayCreditTotal - displayDebitTotal
-                        
+
                         return (
                           <div key={sidx} className="flex flex-col gap-4 p-5 border border-slate-200 rounded-xl bg-white shadow-sm">
                             <div className="flex items-center justify-between border-b border-rule pb-2 flex-wrap gap-2">
-                              <h4 className={styles.promoterTitle} style={{ fontSize: '16px', margin: 0 }}>
-                                {sub.subgroupName}
+                              <h4 className={`${styles.promoterTitle} flex items-center gap-2`} style={{ fontSize: '16px', margin: 0 }}>
+                                {sub.name}
+                                <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-medium">
+                                  {sub.ledgers.length} Accounts
+                                </span>
                               </h4>
                               {isFilteredView && selectedLedger && (
                                 <div className="flex items-center gap-2 bg-accent-soft px-3 py-1 rounded-lg">
                                   <span className="text-xs text-accent font-semibold">
                                     Filtered: {selectedLedger}
                                   </span>
-                                  <button 
+                                  <button
                                     className="p-0.5 rounded-full hover:bg-white text-accent transition-colors flex items-center justify-center"
                                     onClick={() => setSelectedLedger(null)}
                                     title="Clear ledger filter"
@@ -681,7 +786,7 @@ export function FundsFlow({
                                 </div>
                               )}
                             </div>
-                            
+
                             {/* Ledger Balances list in the subgroup */}
                             {sub.ledgers.length > 0 && (
                               <div className="flex flex-col gap-2">
@@ -696,11 +801,11 @@ export function FundsFlow({
                                   {sub.ledgers.map((l, lidx) => {
                                     const isSelected = selectedLedger === l.ledgerName
                                     return (
-                                      <div 
+                                      <div
                                         className={`${styles.detailRow} ${styles.clickableLedgerRow} ${isSelected ? styles.activeLedgerRow : ''}`}
-                                        style={{ 
+                                        style={{
                                           gridTemplateColumns: 'minmax(200px, 1.5fr) 140px'
-                                        }} 
+                                        }}
                                         key={lidx}
                                         onClick={() => {
                                           if (isFilteredView) {
@@ -725,7 +830,7 @@ export function FundsFlow({
                                 </div>
                               </div>
                             )}
-                            
+
                             {/* Voucher Transactions list in the subgroup */}
                             <div className="flex flex-col gap-2" style={{ marginTop: '8px' }}>
                               <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400">
@@ -741,8 +846,8 @@ export function FundsFlow({
                                   <span>Net Amount</span>
                                 </div>
                                 {displayVouchers.map((line, idx) => (
-                                  <div 
-                                    className={`${styles.detailRow6} ${line.voucherId ? styles.clickableLedgerRow : ''}`} 
+                                  <div
+                                    className={`${styles.detailRow6} ${line.voucherId ? styles.clickableLedgerRow : ''}`}
                                     key={idx}
                                     role={line.voucherId ? 'button' : undefined}
                                     onClick={() => line.voucherId && setSelectedVoucherId(line.voucherId)}
@@ -760,9 +865,9 @@ export function FundsFlow({
                                 )}
                                 <div className={styles.totalRow6}>
                                   <strong>
-                                    {selectedLedger 
-                                      ? `Total Movement (${selectedLedger})` 
-                                      : `Subtotal Movement (${sub.subgroupName})`
+                                    {selectedLedger
+                                      ? `Total Movement (${selectedLedger})`
+                                      : `Subtotal Movement (${sub.name})`
                                     }
                                   </strong>
                                   <span></span>
@@ -778,8 +883,8 @@ export function FundsFlow({
                           </div>
                         )
                       })}
-                      
-                      {selectedSubgroup === 'all' && (
+
+                      {selectedPath.length === 0 && (
                         <div className={styles.tableWrap} style={{ marginTop: '12px' }}>
                           <div className={styles.totalRow6} style={{ borderTop: 'none', background: 'var(--accent-soft)' }}>
                             <strong>Overall Total ({activeGroup.groupName})</strong>
