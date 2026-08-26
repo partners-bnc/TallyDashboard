@@ -1,5 +1,9 @@
 # Direct Electron-to-Neon Data API migration
 
+For the beginner-friendly explanation of the implementation, Data API, Auth,
+RLS, RPC flow, validation evidence, and remaining production cutover, see
+[`docs/supabase-to-neon-migration-guide.md`](docs/supabase-to-neon-migration-guide.md).
+
 The dashboard and Electron application use Neon Managed Auth and the Neon Data
 API. Accounting ingestion no longer traverses a dashboard/Vercel route and no
 runtime database login is distributed or deployed.
