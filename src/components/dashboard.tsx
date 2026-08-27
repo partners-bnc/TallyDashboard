@@ -12,30 +12,15 @@ import type { PromotersReportData } from '@/lib/data'
 import type { GstReportData } from '@/lib/gst-data'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
+import { dashboardUrl, overviewUrl, workspaceSelectorUrl } from '@/lib/dashboard-navigation'
 import styles from './dashboard.module.css'
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
 const tdsMoney = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const compact = new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 1 })
 
-function withContext(org: string | null, company: string | null, from = '', to = '') {
-  const params = new URLSearchParams()
-  if (org) params.set('org', org)
-  if (company) params.set('company', company)
-  if (from) params.set('from', from)
-  if (to) params.set('to', to)
-  return `/dashboard/overview?${params.toString()}`
-}
-
 function tdsReportHref(org: string | null, company: string | null, ledger: string, from: string, to: string) {
-  const params = new URLSearchParams()
-  if (org) params.set('org', org)
-  if (company) params.set('company', company)
-  params.set('ledger', ledger)
-  params.set('lockLedger', 'true')
-  if (from) params.set('from', from)
-  if (to) params.set('to', to)
-  return `/dashboard/reports/tds-report?${params.toString()}`
+  return dashboardUrl('/dashboard/reports/tds-report', { orgId: org, companyId: company, from, to }, { ledger, lockLedger: 'true' })
 }
 
 function Metric({
@@ -82,6 +67,7 @@ export function Dashboard({
   tdsData,
   promoterData,
   gstData,
+  unavailableWidgets,
   from,
   to
 }: {
@@ -93,6 +79,7 @@ export function Dashboard({
   tdsData: TdsReportData | null
   promoterData: PromotersReportData | null
   gstData: GstReportData | null
+  unavailableWidgets: Array<'tds' | 'promoters' | 'gst'>
   from: string
   to: string
 }) {
@@ -101,11 +88,11 @@ export function Dashboard({
   const [ledgerSearch, setLedgerSearch] = useState('')
   const [groupSearch, setGroupSearch] = useState('')
   const [dateOpen, setDateOpen] = useState(false)
-  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [isTransitioning, startNavigation] = useTransition()
   const selectedOrg = organizations.find((org) => org.id === selectedOrganizationId)
   const selectedCompany = companies.find((company) => company.id === selectedCompanyId)
   const totalTdsOutstanding = tdsData?.ledgerPositions.reduce((sum, position) => sum + position.outstanding, 0) ?? 0
-  
+
   const filteredLedgers = useMemo(() => {
     return data?.ledgers.filter((ledger) => {
       const qLedger = ledgerSearch.toLowerCase()
@@ -121,7 +108,7 @@ export function Dashboard({
     const nextFrom = String(formData.get('from') ?? '')
     const nextTo = String(formData.get('to') ?? '')
     setDateOpen(false)
-    startPeriodTransition(() => router.push(withContext(selectedOrganizationId, selectedCompanyId, nextFrom, nextTo)))
+    startPeriodTransition(() => router.replace(overviewUrl({ orgId: selectedOrganizationId, companyId: selectedCompanyId, from: nextFrom, to: nextTo })))
   }
 
   return (
@@ -183,8 +170,7 @@ export function Dashboard({
                           value={selectedOrganizationId ?? ''} 
                           disabled={isTransitioning}
                           onChange={(e) => { 
-                            setIsTransitioning(true); 
-                            window.location.assign(withContext(e.target.value || null, null)) 
+                            startNavigation(() => router.replace(workspaceSelectorUrl(e.target.value || null)))
                           }}
                         >
                           {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
@@ -196,8 +182,7 @@ export function Dashboard({
                           value={selectedCompanyId ?? ''} 
                           disabled={isTransitioning} 
                           onChange={(e) => {
-                            setIsTransitioning(true);
-                            window.location.assign(withContext(selectedOrganizationId, e.target.value || null));
+                            startNavigation(() => router.replace(overviewUrl({ orgId: selectedOrganizationId, companyId: e.target.value || null, from, to })))
                           }}
                         >
                           {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
@@ -219,11 +204,7 @@ export function Dashboard({
                           className={styles.trialBalanceButton}
                           disabled={isTransitioning}
                           onClick={() => {
-                            setIsTransitioning(true)
-                            const params = new URLSearchParams({ org: selectedOrganizationId ?? '', company: selectedCompanyId })
-                            if (from) params.set('from', from)
-                            if (to) params.set('to', to)
-                            window.location.assign(`/dashboard/trial-balance?${params.toString()}`)
+                            startNavigation(() => router.push(dashboardUrl('/dashboard/trial-balance', { orgId: selectedOrganizationId, companyId: selectedCompanyId, from, to })))
                           }}
                         >
                           Trial Balance
@@ -233,11 +214,7 @@ export function Dashboard({
                           className={styles.trialBalanceButton}
                           disabled={isTransitioning}
                           onClick={() => {
-                            setIsTransitioning(true)
-                            const params = new URLSearchParams({ org: selectedOrganizationId ?? '', company: selectedCompanyId })
-                            if (from) params.set('from', from)
-                            if (to) params.set('to', to)
-                            window.location.assign(`/dashboard/reports/tds-report?${params.toString()}`)
+                            startNavigation(() => router.push(dashboardUrl('/dashboard/reports/tds-report', { orgId: selectedOrganizationId, companyId: selectedCompanyId, from, to })))
                           }}
                         >
                           TDS Report
@@ -247,11 +224,7 @@ export function Dashboard({
                           className={styles.trialBalanceButton}
                           disabled={isTransitioning}
                           onClick={() => {
-                            setIsTransitioning(true)
-                            const params = new URLSearchParams({ org: selectedOrganizationId ?? '', company: selectedCompanyId })
-                            if (from) params.set('from', from)
-                            if (to) params.set('to', to)
-                            window.location.assign(`/dashboard/funds-flow?${params.toString()}`)
+                            startNavigation(() => router.push(dashboardUrl('/dashboard/funds-flow', { orgId: selectedOrganizationId, companyId: selectedCompanyId, from, to })))
                           }}
                         >
                           Funds Flow
@@ -276,8 +249,7 @@ export function Dashboard({
                     {(from || to) && (
                       <button 
                         onClick={() => {
-                          setIsTransitioning(true);
-                          window.location.assign(withContext(selectedOrganizationId, selectedCompanyId, '', ''));
+                          startNavigation(() => router.replace(overviewUrl({ orgId: selectedOrganizationId, companyId: selectedCompanyId })))
                         }} 
                         disabled={isTransitioning}
                         className={styles.resetPeriodButton}
@@ -385,7 +357,10 @@ export function Dashboard({
                       </div>
                     </div>
                   ) : (
-                    <EmptyPanel title="No promoters data" detail="Promoters & Unsecured Loans summary will appear after mapping." />
+                    <EmptyPanel
+                      title={unavailableWidgets.includes('promoters') ? 'Promoters data unavailable' : 'No promoters data'}
+                      detail={unavailableWidgets.includes('promoters') ? 'This widget could not be loaded. Other dashboard data is still available.' : 'Promoters & Unsecured Loans summary will appear after mapping.'}
+                    />
                   )}
                 </article>
               </section>
@@ -439,7 +414,10 @@ export function Dashboard({
                       </div>
                     </div>
                   ) : (
-                    <EmptyPanel title="No TDS positions" detail="No mapped TDS ledger positions are available through 31 March 2027." />
+                    <EmptyPanel
+                      title={unavailableWidgets.includes('tds') ? 'TDS data unavailable' : 'No TDS positions'}
+                      detail={unavailableWidgets.includes('tds') ? 'This widget could not be loaded. Other dashboard data is still available.' : 'No mapped TDS ledger positions are available through 31 March 2027.'}
+                    />
                   )}
                 </article>
 
@@ -550,7 +528,10 @@ export function Dashboard({
                       </div>
                     </div>
                   ) : (
-                    <EmptyPanel title="No Duties & Taxes mapped" detail="GST closing balances will appear after mapping GST groups." />
+                    <EmptyPanel
+                      title={unavailableWidgets.includes('gst') ? 'GST data unavailable' : 'No Duties & Taxes mapped'}
+                      detail={unavailableWidgets.includes('gst') ? 'This widget could not be loaded. Other dashboard data is still available.' : 'GST closing balances will appear after mapping GST groups.'}
+                    />
                   )}
                 </article>
               </section>
@@ -594,7 +575,7 @@ export function Dashboard({
                       <button
                         className={styles.ledgerRow}
                         key={ledger.id}
-                        onClick={() => window.location.assign(`/dashboard/ledger?org=${selectedOrganizationId}&company=${selectedCompanyId}&ledger=${ledger.id}`)}
+                        onClick={() => router.push(dashboardUrl('/dashboard/ledger', { orgId: selectedOrganizationId, companyId: selectedCompanyId, from, to }, { ledger: ledger.id }))}
                       >
                         <span><small>{ledger.id.slice(0, 8)}</small></span>
                         <span><strong>{ledger.name}</strong></span>

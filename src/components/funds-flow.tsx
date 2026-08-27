@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUpRight, ArrowsClockwise, CaretDown, Download, Scales, 
 import type { Company, FundsFlowData, FundsFlowGroupNode, Organization, FundsFlowEntry } from '@/lib/types'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
+import { dashboardUrl } from '@/lib/dashboard-navigation'
 // @ts-ignore
 import XLSX from 'xlsx-js-style'
 import styles from './funds-flow.module.css'
@@ -24,7 +25,7 @@ function PeriodForm({ orgId, companyId, from, to, isPending, startTransition }: 
   const applyPeriod = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
-    startTransition(() => router.push(`/dashboard/funds-flow?${query({ org: orgId, company: companyId, from: String(formData.get('from') ?? ''), to: String(formData.get('to') ?? '') })}`))
+    startTransition(() => router.replace(`/dashboard/funds-flow?${query({ org: orgId, company: companyId, from: String(formData.get('from') ?? ''), to: String(formData.get('to') ?? '') })}`))
   }
   return (
     <form className={styles.periodForm} onSubmit={applyPeriod}>
@@ -63,7 +64,6 @@ export function FundsFlow({
   const [isPending, startTransition] = useTransition()
   const [activeTab, setActiveTab] = useState<string>('summary')
   const [summaryMode, setSummaryMode] = useState<'groups' | 'subgroups'>('groups')
-  const [navigating, setNavigating] = useState(false)
   const [selectedPath, setSelectedPath] = useState<string[]>([])
   const [selectedLedger, setSelectedLedger] = useState<string | null>(null)
 
@@ -442,9 +442,7 @@ export function FundsFlow({
       <main className="flex-grow">
         <div className={styles.shell}>
           {/* Back button */}
-          <button className={styles.backButton} disabled={navigating} onClick={() => { setNavigating(true); window.location.assign(`/dashboard/overview?${query({ org: orgId, company: companyId, to })}`) }}>
-            {navigating ? <SpinnerGap className={styles.spin} size={15} /> : <ArrowLeft size={15} />} Back to Overview
-          </button>
+          <button className={styles.backButton} type="button" onClick={() => router.back()}><ArrowLeft size={15} /> Back to Overview</button>
 
           {/* Page Header */}
           <header className={styles.header}>
@@ -814,7 +812,7 @@ export function FundsFlow({
                                         }}
                                         onDoubleClick={() => {
                                           if (l.ledgerId) {
-                                            window.location.assign(`/dashboard/trial-balance/ledger?${query({ org: orgId, company: companyId, ledger: l.ledgerId, to })}`)
+                                            router.push(dashboardUrl('/dashboard/trial-balance/ledger', { orgId, companyId, to }, { ledger: l.ledgerId }))
                                           }
                                         }}
                                       >

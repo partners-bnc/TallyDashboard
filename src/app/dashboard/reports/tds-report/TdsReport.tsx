@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import NextLink from 'next/link'
 import { AppShell, Card, Dialog, Grid, Heading, HStack, Layout, LayoutContent, Link, Text, VStack } from '@astryxdesign/core'
 import { ArrowLeft, CalendarDays, Download, Eye, CheckCircle2, AlertTriangle, Clock, TrendingUp, ShieldCheck, AlertCircle, X } from 'lucide-react'
+import { dashboardUrl } from '@/lib/dashboard-navigation'
 import Header from '@/components/ui/Header'
 import type { TdsReportData, TdsStatus } from '@/lib/types'
 import XLSX from 'xlsx-js-style'
@@ -84,7 +85,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
   }), [data, from, ledger, showCleared, status, to, selectedMonth])
 
   const selected = visibleRows.find((row) => row.id === selectedId) ?? null
-  const applyDates = () => startTransition(() => router.push(`/dashboard/reports/tds-report?${query({ org: orgId, company: companyId, from: draftFrom, to: draftTo, ledger: ledger === 'all' ? undefined : ledger })}`))
+  const applyDates = () => startTransition(() => router.replace(dashboardUrl('/dashboard/reports/tds-report', { orgId, companyId, from: draftFrom, to: draftTo }, { ledger: ledger === 'all' ? undefined : ledger })))
   
   const monthOptions = useMemo(() => {
     if (!data?.rows) return [{ label: 'All months', value: 'all' }]
@@ -102,7 +103,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
       options.push({ label: formatted, value: m })
     })
     return options
-  }, [data?.rows, from, to])
+  }, [data, from, to])
 
   const ledgerOptions = [{ label: 'All TDS ledgers', value: 'all' }, ...(data?.ledgerOptions ?? []).map((item) => ({ label: item.label, value: item.id }))]
   const statusOptions = [{ label: 'All statuses', value: 'all' }, ...(['CLEARED_ON_TIME', 'CLEARED_LATE', 'REVERSED', 'PARTIALLY_CLEARED_OVERDUE', 'PARTIALLY_CLEARED_NOT_DUE', 'UNPAID_OVERDUE', 'PENDING_NOT_DUE', 'EXCESS_UNALLOCATED', 'REVIEW_REQUIRED'] as TdsStatus[]).map((item) => ({ label: statusLabel(item), value: item }))]
@@ -139,7 +140,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                 Manage TDS mapping
               </Link>
               <button 
-                onClick={() => router.push(`/dashboard?${query({ org: orgId, company: companyId, from, to })}`)}
+                onClick={() => router.back()}
                 className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 transition-all font-semibold shadow-sm cursor-pointer"
               >
                 <ArrowLeft size={16} />

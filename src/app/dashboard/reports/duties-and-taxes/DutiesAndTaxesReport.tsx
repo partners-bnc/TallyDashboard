@@ -8,6 +8,7 @@ import { AlertCircle, BarChart2, CheckCircle2, ChevronDown, ChevronRight, Clipbo
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import Header from '@/components/ui/Header'
 import type { GstLedgerBalance, GstReportData } from '@/lib/gst-data'
+import { dashboardUrl } from '@/lib/dashboard-navigation'
 
 const money = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -16,12 +17,6 @@ const money = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2,
 })
 const amount = (value: number) => value === 0 ? '—' : money.format(value)
-
-const query = (values: Record<string, string | undefined>) => {
-  const params = new URLSearchParams()
-  for (const [key, value] of Object.entries(values)) if (value) params.set(key, value)
-  return params.toString()
-}
 
 const ACCENT = 'var(--accent, #6366f1)'
 const ACCENT_SOFT = 'var(--accent-soft, #e0e7ff)'
@@ -53,7 +48,7 @@ export function DutiesAndTaxesReport({
 
   const applyDates = () => {
     startTransition(() => {
-      router.push(`/dashboard/reports/duties-and-taxes?${query({ org: orgId, company: companyId, from: draftFrom, to: draftTo })}`)
+      router.replace(dashboardUrl('/dashboard/reports/duties-and-taxes', { orgId, companyId, from: draftFrom, to: draftTo }))
     })
   }
 

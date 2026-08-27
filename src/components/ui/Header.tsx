@@ -19,7 +19,7 @@ const HeaderInner = () => {
   const { mode, toggleMode } = useThemeMode()
   
   const searchParams = useSearchParams()
-  const withParams = (path: string) => `${path}?${searchParams.toString()}`
+  const withParams = (path: string) => `${path === '/dashboard' ? '/dashboard/overview' : path}?${searchParams.toString()}`
 
   async function handleLogout() {
     try {
@@ -119,7 +119,7 @@ const HeaderInner = () => {
                             </div>
                           </div>
                         </Link>
-                        <Link href="/dashboard" className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border dark:border-gray-700">
+                        <Link href={withParams('/dashboard')} className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border dark:border-gray-700">
                           <div className="flex items-start gap-3">
                             <div className="w-8 h-8 bg-pink-100 dark:bg-pink-900/40 rounded-lg flex items-center justify-center">
                               <MessageSquare className="w-4 h-4 text-pink-600 dark:text-pink-400" />
@@ -130,7 +130,7 @@ const HeaderInner = () => {
                             </div>
                           </div>
                         </Link>
-                        <Link href="/dashboard" className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border dark:border-gray-700">
+                        <Link href={withParams('/dashboard')} className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border dark:border-gray-700">
                           <div className="flex items-start gap-3">
                             <div className="w-8 h-8 bg-cyan-100 dark:bg-cyan-900/40 rounded-lg flex items-center justify-center">
                               <Upload className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />

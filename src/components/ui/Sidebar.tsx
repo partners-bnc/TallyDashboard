@@ -2,9 +2,11 @@
 
 import { Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { X, Database, BarChart3, Image as ImageIcon, Calculator, User, Settings, CreditCard, LogOut } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { authClient } from '@/lib/auth/client'
+import { overviewUrl } from '@/lib/dashboard-navigation'
 
 
 
@@ -14,6 +16,14 @@ interface SidebarProps {
 }
 
 const SidebarInner = ({ isOpen, onClose }: SidebarProps) => {
+  const searchParams = useSearchParams()
+  const dashboardPath = overviewUrl({
+    orgId: searchParams.get('org'),
+    companyId: searchParams.get('company'),
+    from: searchParams.get('from'),
+    to: searchParams.get('to'),
+  })
+
   const sections = [
     {
       title: 'Core Analytics',
@@ -93,7 +103,7 @@ const SidebarInner = ({ isOpen, onClose }: SidebarProps) => {
                         return (
                           <Link
                             key={item.name}
-                            href={item.path}
+                            href={item.path === '/dashboard' ? dashboardPath : item.path}
                             onClick={async (e) => {
                               if (item.name === 'Logout') {
                                 e.preventDefault()

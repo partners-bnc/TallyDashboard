@@ -1,37 +1,14 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { useActionState } from 'react'
 import Link from 'next/link'
-import { authClient } from '@/lib/auth/client'
+import { login, type LoginState } from './actions'
 
 import illustration from '@/assets/mX2lljSONA.svg'
 import styles from './login.module.css'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setBusy(true)
-    setError('')
-    try {
-      const result = await authClient.signIn.email({ email: email.trim(), password })
-      if (result.error) {
-        setError(/invalid login credentials/i.test(result.error.message ?? '') ? 'Incorrect email or password.' : 'Sign-in failed. Try again.')
-      } else {
-        window.location.assign('/dashboard')
-      }
-    } catch (reason) {
-      setError(reason instanceof Error && /Invalid input|NEON_AUTH/i.test(reason.message)
-        ? 'Neon Auth is not configured. Add NEON_AUTH_BASE_URL and NEON_AUTH_COOKIE_SECRET to .env.local, then restart the dev server.'
-        : 'Could not reach Neon Auth. Check your connection and try again.')
-    } finally {
-      setBusy(false)
-    }
-  }
+  const [state, formAction, busy] = useActionState<LoginState, FormData>(login, { error: '' })
 
   return (
     <main className={styles.page}>
@@ -57,15 +34,14 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <form onSubmit={submit} className="w-full flex flex-col gap-4 text-left">
+          <form action={formAction} className="w-full flex flex-col gap-4 text-left">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-inter">
                 Email Address
               </label>
               <input 
                 type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
+                name="email"
                 required 
                 autoComplete="email" 
                 className="w-full h-11 px-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-inter text-slate-900 text-sm"
@@ -79,8 +55,7 @@ export default function LoginPage() {
               </label>
               <input 
                 type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
+                name="password"
                 required 
                 autoComplete="current-password" 
                 className="w-full h-11 px-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-inter text-slate-900 text-sm"
@@ -88,9 +63,9 @@ export default function LoginPage() {
               />
             </div>
 
-            {error && (
+            {state.error && (
               <p role="alert" className="text-xs text-red-500 font-medium font-inter mt-1">
-                {error}
+                {state.error}
               </p>
             )}
 

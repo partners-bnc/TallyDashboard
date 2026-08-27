@@ -165,36 +165,15 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
     setSelectedVoucherId(voucherId)
   }
 
-  // Back button path
-  const backUrl = orgId && companyId
-    ? `/dashboard/overview?org=${orgId}&company=${companyId}`
-    : '/dashboard'
-
   const router = useRouter()
 
-  // Prefetch the overview page immediately on mount so it's ready when the user clicks
-  useEffect(() => {
-    router.prefetch(backUrl)
-  }, [backUrl, router])
-
-  const [navigating, setNavigating] = useState(false)
-
   const handleBack = useCallback(() => {
-    setNavigating(true)
-    router.push(backUrl)
-  }, [backUrl, router])
+    router.back()
+  }, [router])
 
   return (
     <div className="min-h-screen bg-background flex flex-col justify-between font-inter">
       <Header />
-
-      {/* ── Bottom nav loading bar ── */}
-      {navigating && (
-        <div className={styles.navLoadingBar}>
-          <div className={styles.navLoadingBarInner} />
-          Navigating to Overview…
-        </div>
-      )}
 
       <main className="flex-grow pt-4 pb-12">
         <div className={styles.shell}>
@@ -203,13 +182,10 @@ export function LedgerDetail({ orgId, companyId, ledgerId }: LedgerDetailProps) 
           <div className="mb-6">
             <button
               onClick={handleBack}
-              disabled={navigating}
               className={styles.backButton3d}
             >
-              {navigating
-                ? <SpinnerGap size={15} className={styles.navSpinner} />
-                : <ArrowLeft size={16} weight="bold" />}
-              {navigating ? 'Going back…' : 'Back to Overview'}
+              <ArrowLeft size={16} weight="bold" />
+              Back to Overview
             </button>
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mt-1">

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { TdsReport } from './TdsReport'
-import { getTdsReportData, listCompanies, listOrganizations } from '@/lib/data'
+import { getCompanyContext, getTdsReportData } from '@/lib/data'
 import { normalizePeriodQuery } from '@/lib/period'
 import { currentFinancialYear, TDS_BOOKS_AS_OF_DATE } from '@/lib/tds'
 import { isTdsMappingComplete } from '@/lib/compliance-data'
@@ -12,10 +12,8 @@ export default async function TdsReportPage({ searchParams }: { searchParams: Pr
   const from = period.from || financialYear.from
   const to = period.to || financialYear.to
   const asOf = TDS_BOOKS_AS_OF_DATE
-  const organizations = await listOrganizations()
-  const orgId = params.org && organizations.some((organization) => organization.id === params.org) ? params.org : undefined
-  const companies = orgId ? await listCompanies(orgId) : []
-  const company = params.company ? companies.find((candidate) => candidate.id === params.company) : undefined
+  const orgId = params.org
+  const company = orgId && params.company ? await getCompanyContext(orgId, params.company) : null
   
   if (!orgId || !company) {
     const search = new URLSearchParams()
@@ -36,12 +34,7 @@ export default async function TdsReportPage({ searchParams }: { searchParams: Pr
 
   let data = null
   if (period.isValid && asOf >= from) {
-    try { 
-      data = await getTdsReportData(company.id, from, to, asOf) 
-    } catch (e) { 
-      console.error("TdsReportPage: Failed to load TDS report data:", e)
-      data = null 
-    }
+    data = await getTdsReportData(company.id, from, to, asOf)
   }
   const lockLedger = params.lockLedger === 'true'
   const initialLedger = params.ledger && data?.ledgerOptions.some((option) => option.id === params.ledger) ? params.ledger : 'all'

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { PromotersReport } from './PromotersReport'
-import { getPromotersReportData, listCompanies, listOrganizations } from '@/lib/data'
+import { getCompanyContext, getPromotersReportData } from '@/lib/data'
 import { normalizePeriodQuery } from '@/lib/period'
 import { currentFinancialYear } from '@/lib/tds'
 import { isMappingComplete } from '@/lib/compliance-data'
@@ -12,10 +12,8 @@ export default async function PromotersReportPage({ searchParams }: { searchPara
   const from = period.from || financialYear.from
   const to = period.to || financialYear.to
   
-  const organizations = await listOrganizations()
-  const orgId = params.org && organizations.some((organization) => organization.id === params.org) ? params.org : undefined
-  const companies = orgId ? await listCompanies(orgId) : []
-  const company = params.company ? companies.find((candidate) => candidate.id === params.company) : undefined
+  const orgId = params.org
+  const company = orgId && params.company ? await getCompanyContext(orgId, params.company) : null
   
   if (!orgId || !company) {
     const search = new URLSearchParams()
@@ -37,12 +35,7 @@ export default async function PromotersReportPage({ searchParams }: { searchPara
 
   let data = null
   if (period.isValid) {
-    try { 
-      data = await getPromotersReportData(company.id, from, to) 
-    } catch (e) { 
-      console.error("PromotersReportPage: Failed to load Promoters report data:", e)
-      data = null 
-    }
+    data = await getPromotersReportData(company.id, from, to)
   }
   
   return <PromotersReport orgId={orgId} companyId={company.id} companyName={company.name} data={data} from={from} to={to} />

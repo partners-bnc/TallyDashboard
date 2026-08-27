@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { DutiesAndTaxesReport } from './DutiesAndTaxesReport'
-import { listCompanies, listOrganizations } from '@/lib/data'
+import { getCompanyContext } from '@/lib/data'
 import { getGstReportData } from '@/lib/gst-data'
 import { normalizePeriodQuery } from '@/lib/period'
 import { currentFinancialYear } from '@/lib/tds'
@@ -11,10 +11,8 @@ import { createNeonDataApiClient } from '@/lib/neon/data-api'
 export default async function DutiesAndTaxesPage({ searchParams }: { searchParams: Promise<{ org?: string; company?: string; from?: string; to?: string }> }) {
   const params = await searchParams
 
-  const organizations = await listOrganizations()
-  const orgId = params.org && organizations.some((o) => o.id === params.org) ? params.org : undefined
-  const companies = orgId ? await listCompanies(orgId) : []
-  const company = params.company ? companies.find((c) => c.id === params.company) : undefined
+  const orgId = params.org
+  const company = orgId && params.company ? await getCompanyContext(orgId, params.company) : null
 
   if (!orgId || !company) {
     const search = new URLSearchParams()
@@ -49,12 +47,7 @@ export default async function DutiesAndTaxesPage({ searchParams }: { searchParam
 
   let data = null
   if (period.isValid) {
-    try {
-      data = await getGstReportData(company.id, from, to)
-    } catch (e) {
-      console.error('DutiesAndTaxesPage: Failed to load data:', e)
-      data = null
-    }
+    data = await getGstReportData(company.id, from, to)
   }
 
   return <DutiesAndTaxesReport orgId={orgId} companyId={company.id} companyName={company.name} data={data} from={from} to={to} />

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { listCompanies, listOrganizations } from '@/lib/data'
 import { DashboardSelector } from '@/components/dashboard-selector'
+import { overviewUrl } from '@/lib/dashboard-navigation'
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ org?: string; company?: string; from?: string; to?: string }> }) {
   const params = await searchParams
@@ -11,12 +12,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   // If company context is already selected, redirect to the overview page
   if (organizationId && companyId) {
-    const search = new URLSearchParams()
-    search.set('org', organizationId)
-    search.set('company', companyId)
-    if (params.from) search.set('from', params.from)
-    if (params.to) search.set('to', params.to)
-    redirect(`/dashboard/overview?${search.toString()}`)
+    redirect(overviewUrl({ orgId: organizationId, companyId, from: params.from, to: params.to }))
   }
 
   return (

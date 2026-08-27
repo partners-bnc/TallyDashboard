@@ -6,6 +6,7 @@ import { ReportMappingWizard } from './ReportMappingWizard'
 import { saveComplianceMapping } from '@/app/dashboard/compliance-mapping/actions'
 
 const navigation = vi.hoisted(() => ({
+  back: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
   refresh: vi.fn(),
@@ -87,6 +88,21 @@ describe('ReportMappingWizard', () => {
     expect(screen.getByText('Loan from Promoter A')).toBeInTheDocument()
   })
 
+  it('restores the previous report when returning without saving', () => {
+    render(<ReportMappingWizard
+      initialData={baseData()}
+      complianceType="PROMOTERS"
+      title="Promoters Mapping"
+      description="Select promoters groups and ledgers."
+      returnTo="/dashboard/reports/promoters-report"
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Return' }))
+
+    expect(navigation.back).toHaveBeenCalledOnce()
+    expect(navigation.push).not.toHaveBeenCalled()
+  })
+
   it('submits mapping payload on save', async () => {
     render(<ReportMappingWizard
       initialData={baseData()}
@@ -109,6 +125,8 @@ describe('ReportMappingWizard', () => {
         category: 'OTHER',
       }],
     }))
+    expect(navigation.replace).toHaveBeenCalledWith('/dashboard')
+    expect(navigation.refresh).not.toHaveBeenCalled()
   })
 
   it('recursively updates subgroups and candidate ledgers when a group is toggled', async () => {

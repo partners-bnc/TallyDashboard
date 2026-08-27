@@ -1,4 +1,5 @@
 import { createNeonDataApiClient } from '@/lib/neon/data-api'
+import { cache } from 'react'
 import { resolveActiveLedgers } from '@/lib/centralized-mapping'
 import type { Company, DashboardData, HistoryCoverage, Ledger, LedgerMonthlyData, Organization, TrialBalanceData, TrialBalanceLedgerRow, VoucherLine, FundsFlowData, FundsFlowGroup, FundsFlowGroupNode, FundsFlowLedger, FundsFlowEntry, FundsFlowSummary, TdsReportData } from '@/lib/types'
 import { buildTdsReport, type TdsLedgerBalance, type TdsSourceLine } from '@/lib/tds'
@@ -33,19 +34,47 @@ export function groupTrialBalanceRows(rows: TrialBalanceSourceRow[]) {
   return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, ledgers]) => ({ name, ledgers: ledgers.sort((a, b) => a.ledgerName.localeCompare(b.ledgerName)), debitBalance: ledgers.reduce((sum, row) => sum + row.debitBalance, 0), creditBalance: ledgers.reduce((sum, row) => sum + row.creditBalance, 0) }))
 }
 
-export async function listOrganizations(): Promise<Organization[]> {
+const loadOrganizations = cache(async (): Promise<Organization[]> => {
   const client = createNeonDataApiClient()
   const { data, error } = await client.from('tb_organizations').select('id,name,created_at').order('name')
   if (error) throw new Error(`Could not load organizations: ${error.message}`)
   return data ?? []
+})
+
+export function listOrganizations(): Promise<Organization[]> {
+  return loadOrganizations()
 }
 
-export async function listCompanies(orgId: string): Promise<Company[]> {
+const loadCompanies = cache(async (orgId: string): Promise<Company[]> => {
   const client = createNeonDataApiClient()
   const { data, error } = await client.from('tb_companies').select('id,org_id,name,tally_company_guid,last_successful_sync_at,last_sync_status,last_sync_error,is_active,updated_at').eq('org_id', orgId).eq('is_active', true).order('name')
   if (error) throw new Error(`Could not load companies: ${error.message}`)
   return data ?? []
+})
+
+export function listCompanies(orgId: string): Promise<Company[]> {
+  return loadCompanies(orgId)
 }
+
+export const getOrganization = cache(async (orgId: string): Promise<Organization | null> => {
+  const client = createNeonDataApiClient()
+  const { data, error } = await client.from('tb_organizations').select('id,name,created_at').eq('id', orgId).maybeSingle()
+  if (error) throw new Error(`Could not validate organization: ${error.message}`)
+  return data ?? null
+})
+
+export const getCompanyContext = cache(async (orgId: string, companyId: string): Promise<Company | null> => {
+  const client = createNeonDataApiClient()
+  const { data, error } = await client
+    .from('tb_companies')
+    .select('id,org_id,name,tally_company_guid,last_successful_sync_at,last_sync_status,last_sync_error,is_active,updated_at')
+    .eq('id', companyId)
+    .eq('org_id', orgId)
+    .eq('is_active', true)
+    .maybeSingle()
+  if (error) throw new Error(`Could not validate company: ${error.message}`)
+  return data ?? null
+})
 
 export async function getDashboardData(companyId: string, from?: string, to?: string): Promise<DashboardData> {
   const client = createNeonDataApiClient()

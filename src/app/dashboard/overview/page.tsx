@@ -23,14 +23,26 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const financialYear = currentFinancialYear()
   const tdsFrom = period.from || financialYear.from
   const tdsTo = period.to || financialYear.to
-  const [data, tdsData, promoterData, gstData] = period.isValid
-    ? await Promise.all([
-        getDashboardData(companyId, period.from || undefined, period.to || undefined),
-        getTdsReportData(companyId, tdsFrom, tdsTo, TDS_BOOKS_AS_OF_DATE).catch(() => null),
-        getPromotersReportData(companyId, period.from || undefined, period.to || undefined).catch(() => null),
-        getGstReportData(companyId, period.from || undefined, period.to || undefined).catch(() => null),
-      ])
-    : [null, null, null, null]
+  let data = null
+  let tdsData = null
+  let promoterData = null
+  let gstData = null
+  const unavailableWidgets: Array<'tds' | 'promoters' | 'gst'> = []
+
+  if (period.isValid) {
+    data = await getDashboardData(companyId, period.from || undefined, period.to || undefined)
+    const [tdsResult, promoterResult, gstResult] = await Promise.allSettled([
+      getTdsReportData(companyId, tdsFrom, tdsTo, TDS_BOOKS_AS_OF_DATE),
+      getPromotersReportData(companyId, period.from || undefined, period.to || undefined),
+      getGstReportData(companyId, period.from || undefined, period.to || undefined),
+    ])
+    if (tdsResult.status === 'fulfilled') tdsData = tdsResult.value
+    else unavailableWidgets.push('tds')
+    if (promoterResult.status === 'fulfilled') promoterData = promoterResult.value
+    else unavailableWidgets.push('promoters')
+    if (gstResult.status === 'fulfilled') gstData = gstResult.value
+    else unavailableWidgets.push('gst')
+  }
 
   return (
     <Dashboard 
@@ -42,6 +54,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       tdsData={tdsData}
       promoterData={promoterData}
       gstData={gstData}
+      unavailableWidgets={unavailableWidgets}
       from={period.from}
       to={period.to}
     />

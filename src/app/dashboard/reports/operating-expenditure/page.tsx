@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { OperatingExpenditure } from './OperatingExpenditure'
-import { getOperatingExpenditureReportData, listCompanies, listOrganizations } from '@/lib/data'
+import { getCompanyContext, getOperatingExpenditureReportData } from '@/lib/data'
 import { normalizePeriodQuery } from '@/lib/period'
 import { currentFinancialYear } from '@/lib/tds'
 import { isMappingComplete } from '@/lib/compliance-data'
@@ -12,10 +12,8 @@ export default async function OperatingExpenditurePage({ searchParams }: { searc
   const from = period.from || financialYear.from
   const to = period.to || financialYear.to
 
-  const organizations = await listOrganizations()
-  const orgId = params.org && organizations.some((o) => o.id === params.org) ? params.org : undefined
-  const companies = orgId ? await listCompanies(orgId) : []
-  const company = params.company ? companies.find((c) => c.id === params.company) : undefined
+  const orgId = params.org
+  const company = orgId && params.company ? await getCompanyContext(orgId, params.company) : null
 
   if (!orgId || !company) {
     const search = new URLSearchParams()
@@ -36,12 +34,7 @@ export default async function OperatingExpenditurePage({ searchParams }: { searc
 
   let data = null
   if (period.isValid) {
-    try {
-      data = await getOperatingExpenditureReportData(company.id, from, to)
-    } catch (e) {
-      console.error('OperatingExpenditurePage: Failed to load data:', e)
-      data = null
-    }
+    data = await getOperatingExpenditureReportData(company.id, from, to)
   }
 
   return <OperatingExpenditure orgId={orgId} companyId={company.id} companyName={company.name} data={data} from={from} to={to} />

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowRight, Building2, Landmark, Loader2 } from 'lucide-react'
 import type { Company, Organization } from '@/lib/types'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
+import { overviewUrl, workspaceSelectorUrl } from '@/lib/dashboard-navigation'
 
 interface DashboardSelectorProps {
   organizations: Organization[]
@@ -20,31 +22,20 @@ export function DashboardSelector({
   selectedOrganizationId,
   selectedCompanyId,
 }: DashboardSelectorProps) {
-  const [isTransitioning, setIsTransitioning] = useState(false)
+  const router = useRouter()
+  const [isTransitioning, startTransition] = useTransition()
   
   const handleOrgChange = (orgId: string) => {
-    setIsTransitioning(true)
-    const params = new URLSearchParams()
-    if (orgId) {
-      params.set('org', orgId)
-    }
-    window.location.assign(`/dashboard?${params.toString()}`)
+    startTransition(() => router.replace(workspaceSelectorUrl(orgId)))
   }
 
   const handleCompanyChange = (companyId: string) => {
-    setIsTransitioning(true)
-    const params = new URLSearchParams()
-    if (selectedOrganizationId) {
-      params.set('org', selectedOrganizationId)
-    }
-    if (companyId) {
-      params.set('company', companyId)
-    }
-    window.location.assign(`/dashboard?${params.toString()}`)
+    if (!selectedOrganizationId || !companyId) return
+    startTransition(() => router.replace(overviewUrl({ orgId: selectedOrganizationId, companyId })))
   }
 
-  const dashboardUrl = selectedOrganizationId && selectedCompanyId
-    ? `/dashboard/overview?org=${selectedOrganizationId}&company=${selectedCompanyId}`
+  const destinationUrl = selectedOrganizationId && selectedCompanyId
+    ? overviewUrl({ orgId: selectedOrganizationId, companyId: selectedCompanyId })
     : '#'
 
   return (
@@ -69,7 +60,12 @@ export function DashboardSelector({
               Choose an organization and company to load your Tally financial dashboard.
             </p>
 
-            <div className="w-full flex flex-col gap-5">
+            {organizations.length === 0 ? (
+              <section className="w-full text-center" role="status">
+                <h2 className="text-base font-bold text-slate-900">No workspace assigned</h2>
+                <p className="mt-2 text-sm text-slate-500">Your session is active, but this account is not a member of a TallyOne Ai organization. Ask an administrator to add your membership.</p>
+              </section>
+            ) : <div className="w-full flex flex-col gap-5">
               {/* Organization Selection */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -124,10 +120,9 @@ export function DashboardSelector({
 
               {/* Navigation Action */}
               <Link
-                href={dashboardUrl}
+                href={destinationUrl}
                 aria-disabled={!selectedCompanyId || isTransitioning}
                 tabIndex={!selectedCompanyId || isTransitioning ? -1 : undefined}
-                onClick={() => setIsTransitioning(true)}
                 className={`w-full h-11 bg-primary hover:bg-primary/95 text-white font-semibold rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-sm mt-4 font-inter ${
                   !selectedCompanyId || isTransitioning ? 'opacity-50 cursor-not-allowed pointer-events-none shadow-none hover:shadow-none' : ''
                 }`}
@@ -153,7 +148,7 @@ export function DashboardSelector({
                   </span>
                 </div>
               )}
-            </div>
+            </div>}
             
           </div>
         </div>

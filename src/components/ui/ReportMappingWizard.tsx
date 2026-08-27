@@ -290,7 +290,6 @@ export function ReportMappingWizard({
     }
 
     router.replace(returnTo)
-    router.refresh()
   }
 
   // Recursive component to render a tree node and its nested child container
@@ -467,7 +466,7 @@ export function ReportMappingWizard({
                 <Button
                   label="Return"
                   variant="secondary"
-                  onClick={() => router.push(returnTo)}
+                  onClick={() => router.back()}
                   style={{
                     border: '1px solid #000000',
                     backgroundColor: '#ffffff',

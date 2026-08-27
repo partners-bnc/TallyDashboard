@@ -7,16 +7,11 @@ import { AppShell, Dialog, Layout, LayoutContent, Link, VStack } from '@astryxde
 import { ArrowLeft, CalendarDays, Eye, ShieldCheck, FileText, Clock, Info, Settings2, X } from 'lucide-react'
 import Header from '@/components/ui/Header'
 import type { PromotersReportData, PromoterVoucherEntry } from '@/lib/data'
+import { dashboardUrl } from '@/lib/dashboard-navigation'
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 })
 const amount = (value: number) => value === 0 ? '—' : money.format(value)
 const date = (value: string | null | undefined) => value ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'short' }).format(new Date(`${value}T00:00:00Z`)) : '—'
-
-const query = (values: Record<string, string | undefined>) => {
-  const params = new URLSearchParams()
-  for (const [key, value] of Object.entries(values)) if (value) params.set(key, value)
-  return params.toString()
-}
 
 export function PromotersReport({
   orgId,
@@ -46,7 +41,7 @@ export function PromotersReport({
 
   const applyDates = () => {
     startTransition(() => {
-      router.push(`/dashboard/reports/promoters-report?${query({ org: orgId, company: companyId, from: draftFrom, to: draftTo })}`)
+      router.replace(dashboardUrl('/dashboard/reports/promoters-report', { orgId, companyId, from: draftFrom, to: draftTo }))
     })
   }
 

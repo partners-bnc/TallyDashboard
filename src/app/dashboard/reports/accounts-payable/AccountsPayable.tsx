@@ -7,16 +7,11 @@ import { AppShell, Dialog, Layout, LayoutContent, Link, VStack } from '@astryxde
 import { ArrowLeft, CalendarDays, CreditCard, TrendingDown, TrendingUp, Clock, Info, Settings2, X, FileWarning } from 'lucide-react'
 import Header from '@/components/ui/Header'
 import type { AccountsPayableReportData, AccountsPayableVoucherEntry } from '@/lib/data'
+import { dashboardUrl } from '@/lib/dashboard-navigation'
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 })
 const amount = (value: number) => value === 0 ? '—' : money.format(value)
 const date = (value: string | null | undefined) => value ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'short' }).format(new Date(`${value}T00:00:00Z`)) : '—'
-
-const query = (values: Record<string, string | undefined>) => {
-  const params = new URLSearchParams()
-  for (const [key, value] of Object.entries(values)) if (value) params.set(key, value)
-  return params.toString()
-}
 
 // AP accent colour — matching theme (similar to TDS report)
 const ACCENT = 'var(--accent)'
@@ -49,7 +44,7 @@ export function AccountsPayable({
 
   const applyDates = () => {
     startTransition(() => {
-      router.push(`/dashboard/reports/accounts-payable?${query({ org: orgId, company: companyId, from: draftFrom, to: draftTo })}`)
+      router.replace(dashboardUrl('/dashboard/reports/accounts-payable', { orgId, companyId, from: draftFrom, to: draftTo }))
     })
   }
 
