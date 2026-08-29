@@ -41,18 +41,26 @@ const statusDotClass = (status: TdsStatus) => {
 
 function exportWorkbook(data: TdsReportData, companyName: string) {
   const workbook = XLSX.utils.book_new()
+  const rows = data.rows.filter((row) => !row.deductionMonth || (row.deductionMonth >= `${data.from.slice(0, 7)}-01` && row.deductionMonth <= `${data.to.slice(0, 7)}-01`))
+  const liabilityCreated = rows.reduce((sum, row) => sum + row.deducted, 0)
+  const deposited = rows.reduce((sum, row) => sum + row.deposited, 0)
+  const outstanding = rows.reduce((sum, row) => sum + row.remaining, 0)
+  const overdue = rows.filter((row) => ['UNPAID_OVERDUE', 'PARTIALLY_CLEARED_OVERDUE'].includes(row.status)).reduce((sum, row) => sum + row.remaining, 0)
+  const excess = rows.reduce((sum, row) => sum + row.excess, 0)
   const summary = [
     ['TDS Liability Clearance Report'],
     ['Company', companyName],
     ['As of', data.asOfDate],
+    ['Period from', data.from],
+    ['Period to', data.to],
     [],
-    ['Liability created', data.kpis.liabilityCreated], ['Deposited', data.kpis.deposited], ['Outstanding', data.kpis.remaining], ['Overdue', data.kpis.overdue], ['Excess', data.kpis.excess],
+    ['Liability created', liabilityCreated], ['Deposited / knocked-off', deposited], ['Outstanding', outstanding], ['Overdue', overdue], ['Excess', excess],
   ]
-  const detail = data.rows.map((row) => ({ Ledger: row.ledgerName, 'TDS Type': row.tdsType, Section: row.sectionCode ?? '', 'Deduction Month': row.deductionMonth ?? 'Brought forward', 'Opening Outstanding': row.openingOutstanding, Deducted: row.deducted, Reversed: row.reversed, 'Total Due': row.totalDue, 'Due Date': row.dueDate ?? '', Deposited: row.deposited, Remaining: row.remaining, Excess: row.excess, Status: statusLabel(row.status), 'Books Status': row.booksStatus, 'Deposit Dates': row.depositDates.join(', ') }))
-  const transactions = data.rows.flatMap((row) => [...row.liabilityTransactions, ...row.depositTransactions].map((item) => ({ Ledger: row.ledgerName, 'Deduction Month': row.deductionMonth ?? 'Brought forward', Date: item.date, 'Voucher Type': item.voucherType, 'Voucher Number': item.voucherNumber ?? '', Party: item.party ?? '', Classification: item.classification, Amount: item.amount, 'Signed Amount': item.rawSignedAmount, Note: item.note ?? '' })))
-  const allocations = data.rows.flatMap((row) => row.allocations.map((item) => ({ Ledger: row.ledgerName, 'Deduction Month': row.deductionMonth ?? 'Brought forward', 'Source Type': item.sourceType, 'Source Date': item.sourceDate, 'Source Voucher': item.sourceVoucherNumber ?? '', Allocated: item.allocatedAmount, 'On Time': item.onTimeAmount, Late: item.lateAmount, 'Due Date': item.dueDate ?? '', 'Delay Days': item.delayDays ?? '' })))
-  const ledgerPositions = data.ledgerPositions.map((item) => ({ Ledger: item.ledgerName, Outstanding: item.outstanding, Excess: item.excess }))
-  const reconciliation = data.reconciliation.map((item) => ({ Ledger: item.ledgerName, 'Computed Outstanding': data.ledgerPositions.find((ledger) => ledger.ledgerId === item.ledgerId)?.outstanding ?? 0, 'Ledger Closing Balance': item.expected, 'Reconstructed Net Position': item.reconstructed, Difference: item.difference, Reconciled: item.withinTolerance ? 'Yes' : 'No' }))
+  const detail = rows.map((row) => ({ Ledger: row.ledgerName, 'TDS Type': row.tdsType, Section: row.sectionCode ?? '', 'Deduction Month': row.deductionMonth ?? 'Brought forward', 'Opening Outstanding': row.openingOutstanding, Deducted: row.deducted, Reversed: row.reversed, 'Gross Total Due': row.totalDue, 'Due Date': row.dueDate ?? '', 'Deposited / Knocked-off': row.deposited, Remaining: row.remaining, Excess: row.excess, Status: statusLabel(row.status), 'Books Status': row.booksStatus, 'Allocated Credit Dates': row.depositDates.join(', ') }))
+  const transactions = rows.flatMap((row) => [...row.liabilityTransactions, ...row.depositTransactions].map((item) => ({ Ledger: row.ledgerName, 'Deduction Month': row.deductionMonth ?? 'Brought forward', Date: item.date, 'Voucher Type': item.voucherType, 'Voucher Number': item.voucherNumber ?? '', Party: item.party ?? '', Classification: item.classification, Amount: item.amount, 'Signed Amount': item.rawSignedAmount, Note: item.note ?? '' })))
+  const allocations = rows.flatMap((row) => row.allocations.map((item) => ({ Ledger: row.ledgerName, 'Deduction Month': row.deductionMonth ?? 'Brought forward', 'Source Type': item.sourceType, 'Source Date': item.sourceDate, 'Source Voucher': item.sourceVoucherNumber ?? '', Allocated: item.allocatedAmount, 'On Time': item.onTimeAmount, Late: item.lateAmount, 'Due Date': item.dueDate ?? '', 'Delay Days': item.delayDays ?? '' })))
+  const ledgerPositions = [...new Map(rows.map((row) => [row.ledgerId, row.ledgerName])).entries()].map(([ledgerId, ledgerName]) => ({ Ledger: ledgerName, Outstanding: rows.filter((row) => row.ledgerId === ledgerId).reduce((sum, row) => sum + row.remaining, 0), Excess: rows.filter((row) => row.ledgerId === ledgerId).reduce((sum, row) => sum + row.excess, 0) }))
+  const reconciliation = data.reconciliation.map((item) => ({ Ledger: item.ledgerName, 'Computed Outstanding': rows.filter((row) => row.ledgerId === item.ledgerId).reduce((sum, row) => sum + row.remaining, 0), 'Ledger Closing Balance': item.expected, 'Reconstructed Net Position': item.reconstructed, Difference: item.difference, Reconciled: item.withinTolerance ? 'Yes' : 'No' }))
   for (const [name, rows] of [['Summary', summary], ['Ledger Positions', ledgerPositions], ['Monthly Detail', detail], ['Transactions', transactions], ['Allocations', allocations], ['Reconciliation', reconciliation]] as const) {
     const sheet = name === 'Summary' ? XLSX.utils.aoa_to_sheet(rows) : XLSX.utils.json_to_sheet(rows as object[])
     XLSX.utils.book_append_sheet(workbook, sheet, name)
@@ -289,7 +297,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                   <ShieldCheck className="text-green-500" size={18} />
                 </HStack>
                 <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(filteredKpis.deposited)}</Heading>
-                <Text type="supporting">{filteredKpis.coverage.toFixed(1)}% of liability funded</Text>
+                <Text type="supporting">{filteredKpis.coverage.toFixed(1)}% of gross liability cleared</Text>
               </VStack>
             </Card>
             {/* Outstanding */}
@@ -300,7 +308,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                   <AlertCircle className={filteredKpis.remaining > 0 ? 'text-amber-500' : 'text-slate-400'} size={18} />
                 </HStack>
                 <Heading level={2} style={{ fontSize: '24px', fontWeight: '700' }}>{amount(filteredKpis.remaining)}</Heading>
-                <Text type="supporting">Not yet matched to deposits</Text>
+                <Text type="supporting">Not yet matched to payments or reversals</Text>
               </VStack>
             </Card>
             {/* Overdue Exposure */}
@@ -371,7 +379,7 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
         <VStack gap={4} style={{ paddingLeft: '12px', paddingRight: '12px' }}>
           <VStack gap={1}>
             <Heading level={2}>Monthly Clearance</Heading>
-            <Text type="supporting">Deposits are allocated to the oldest outstanding liability first. Open any row to inspect its voucher trail.</Text>
+            <Text type="supporting">Payments clear the oldest outstanding liability first; reversals knock off compatible liabilities. Open any row to inspect its voucher trail.</Text>
           </VStack>
           
           <div className="w-full overflow-hidden border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-sm">
@@ -381,9 +389,9 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                   <tr>
                     <th scope="col" className="px-6 py-4">Ledger / Section</th>
                     <th scope="col" className="px-6 py-4">Deduction Month</th>
-                    <th scope="col" className="px-6 py-4 text-right">Liability</th>
+                    <th scope="col" className="px-6 py-4 text-right">Gross Liability</th>
                     <th scope="col" className="px-6 py-4 text-right">Reversed</th>
-                    <th scope="col" className="px-6 py-4 text-right">Deposited</th>
+                    <th scope="col" className="px-6 py-4 text-right">Deposited / Knocked-off</th>
                     <th scope="col" className="px-6 py-4 text-right pr-8">Outstanding</th>
                     <th scope="col" className="px-6 py-4 pl-8">Due Date</th>
                     <th scope="col" className="px-6 py-4">Clearance Status</th>
@@ -460,9 +468,9 @@ export function TdsReport({ orgId, companyId, companyName, data, from, to, asOf,
                     <span className={`w-1.5 h-1.5 rounded-full ${statusDotClass(selected.status)}`} />
                     {statusLabel(selected.status)}
                   </span>
-                  <Text type="supporting">Due {date(selected.dueDate)} · Deposits {selected.depositDates.map(date).join(', ') || '—'}</Text>
+                  <Text type="supporting">Due {date(selected.dueDate)} · Allocated credits {selected.depositDates.map(date).join(', ') || '—'}</Text>
                 </HStack>
-                <Text type="supporting">Payment allocations and liability reversals are listed by their own source classification. Reversals never contribute to Deposited.</Text>
+                <Text type="supporting">Payment deposits and liability reversals retain their source classifications below. Allocated amounts from both contribute to Deposited / Knocked-off.</Text>
 
                 <div className="w-full overflow-hidden border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 shadow-sm">
                   <div className="overflow-x-auto">

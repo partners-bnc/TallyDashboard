@@ -1,17 +1,14 @@
 import { redirect } from 'next/navigation'
 import { TdsReport } from './TdsReport'
 import { getCompanyContext, getTdsReportData } from '@/lib/data'
-import { normalizePeriodQuery } from '@/lib/period'
-import { currentFinancialYear, TDS_BOOKS_AS_OF_DATE } from '@/lib/tds'
+import { resolveTdsReportPeriod, TDS_BOOKS_AS_OF_DATE } from '@/lib/tds'
 import { isTdsMappingComplete } from '@/lib/compliance-data'
 import { dashboardUrl } from '@/lib/dashboard-navigation'
 
 export default async function TdsReportPage({ searchParams }: { searchParams: Promise<{ org?: string; company?: string; from?: string; to?: string; ledger?: string; lockLedger?: string }> }) {
   const params = await searchParams
-  const period = normalizePeriodQuery(params.from, params.to)
-  const financialYear = currentFinancialYear()
-  const from = period.from || financialYear.from
-  const to = period.to || financialYear.to
+  const hasDateParameters = params.from !== undefined || params.to !== undefined
+  const requestedPeriod = resolveTdsReportPeriod(params.from, params.to, null)
   const asOf = TDS_BOOKS_AS_OF_DATE
   const orgId = params.org
   const company = orgId && params.company ? await getCompanyContext(orgId, params.company) : null
@@ -38,9 +35,11 @@ export default async function TdsReportPage({ searchParams }: { searchParams: Pr
   }
 
   let data = null
-  if (period.isValid && asOf >= from) {
-    data = await getTdsReportData(company.id, from, to, asOf)
+  if (requestedPeriod.isValid && (!hasDateParameters || asOf >= requestedPeriod.from)) {
+    data = await getTdsReportData(company.id, requestedPeriod.from, requestedPeriod.to, asOf, { defaultToLatestActivity: !hasDateParameters })
   }
+  const from = data?.from ?? requestedPeriod.from
+  const to = data?.to ?? requestedPeriod.to
   const lockLedger = params.lockLedger === 'true'
   const initialLedger = params.ledger && data?.ledgerOptions.some((option) => option.id === params.ledger) ? params.ledger : 'all'
   

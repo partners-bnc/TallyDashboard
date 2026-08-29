@@ -2,7 +2,7 @@ import { createNeonDataApiClient } from '@/lib/neon/data-api'
 import { cache } from 'react'
 import { resolveActiveLedgers } from '@/lib/centralized-mapping'
 import type { Company, DashboardData, HistoryCoverage, Ledger, LedgerMonthlyData, Organization, TrialBalanceData, TrialBalanceLedgerRow, VoucherLine, FundsFlowData, FundsFlowGroup, FundsFlowGroupNode, FundsFlowLedger, FundsFlowEntry, FundsFlowSummary, TdsReportData } from '@/lib/types'
-import { buildTdsReport, type TdsLedgerBalance, type TdsSourceLine } from '@/lib/tds'
+import { buildTdsReport, resolveTdsReportPeriod, type TdsLedgerBalance, type TdsSourceLine } from '@/lib/tds'
 
 export { getGstReportData } from '@/lib/gst-data'
 export type { GstLedgerBalance, GstReportData } from '@/lib/gst-data'
@@ -677,7 +677,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
   }
 }
 
-export async function getTdsReportData(companyId: string, from: string, to: string, asOfDate: string): Promise<TdsReportData> {
+export async function getTdsReportData(companyId: string, from: string, to: string, asOfDate: string, options: { defaultToLatestActivity?: boolean; today?: Date } = {}): Promise<TdsReportData> {
   const client = createNeonDataApiClient()
   const [activeMapping, ledgersResult, sourceResult] = await Promise.all([
     resolveActiveLedgers(companyId, 'TDS'),
@@ -710,7 +710,11 @@ export async function getTdsReportData(companyId: string, from: string, to: stri
     narration: line.narration,
     rawSignedAmount: asNumber(line.raw_signed_amount),
   }))
-  return buildTdsReport({ companyId, asOfDate, from, to, lines, ledgerBalances })
+  const initial = buildTdsReport({ companyId, asOfDate, from, to, lines, ledgerBalances })
+  if (!options.defaultToLatestActivity) return initial
+  const period = resolveTdsReportPeriod(undefined, undefined, initial.latestActivityDate, options.today)
+  if (period.from === from && period.to === to) return initial
+  return buildTdsReport({ companyId, asOfDate, from: period.from, to: period.to, lines, ledgerBalances })
 }
 
 export interface PromoterLedgerPosition {

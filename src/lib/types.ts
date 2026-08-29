@@ -266,6 +266,7 @@ export type TdsReportData = {
   asOfDate: string
   from: string
   to: string
+  latestActivityDate: string | null
   generatedAt: string
   rows: TdsMonthlyRow[]
   kpis: { liabilityCreated: number; deposited: number; knockedOff: number; remaining: number; overdue: number; clearedLate: number; excess: number }

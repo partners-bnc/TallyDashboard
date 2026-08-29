@@ -1,4 +1,5 @@
 import type { TdsAllocation, TdsAuditTransaction, TdsBooksStatus, TdsClassification, TdsMonthlyRow, TdsReportData, TdsStatus } from '@/lib/types'
+import { normalizePeriodQuery } from '@/lib/period'
 
 export type TdsSourceLine = {
   companyId?: string
@@ -79,6 +80,22 @@ export function currentFinancialYear(today = new Date()): { from: string; to: st
   return { from: `${startYear}-04-01`, to: `${startYear + 1}-03-31` }
 }
 
+export function financialYearForDate(date: string): { from: string; to: string } {
+  const year = Number(date.slice(0, 4))
+  const month = Number(date.slice(5, 7))
+  const startYear = month < 4 ? year - 1 : year
+  return { from: `${startYear}-04-01`, to: `${startYear + 1}-03-31` }
+}
+
+export function resolveTdsReportPeriod(from: unknown, to: unknown, latestActivityDate: string | null, today = new Date()) {
+  const period = normalizePeriodQuery(from, to)
+  const hasDateParameters = from !== undefined || to !== undefined
+  const fallback = !hasDateParameters && latestActivityDate && isIsoDate(latestActivityDate)
+    ? financialYearForDate(latestActivityDate)
+    : currentFinancialYear(today)
+  return { from: period.from || fallback.from, to: period.to || fallback.to, isValid: period.isValid }
+}
+
 function classification(line: TdsSourceLine): TdsClassification {
   const voucherType = line.voucherType.toLowerCase()
   const isDepositVoucher = line.depositVoucherTypes.some((type) => type.toLowerCase() === voucherType)
@@ -132,6 +149,9 @@ function statusFor(batch: LiabilityBatch, asOfDate: string): { status: TdsStatus
 
 export function buildTdsReport(input: TdsReportInput): TdsReportData {
   const scopedLines = input.lines.filter((line) => !line.companyId || line.companyId === input.companyId)
+  const latestActivityDate = scopedLines
+    .filter((line) => line.voucherDate <= input.asOfDate && Math.abs(line.rawSignedAmount) > EPSILON)
+    .reduce<string | null>((latest, line) => !latest || line.voucherDate > latest ? line.voucherDate : latest, null)
   const balanceByLedger = new Map(input.ledgerBalances.map((item) => [item.ledgerId, item]))
   const linesByLedger = new Map<string, TdsSourceLine[]>()
   for (const line of scopedLines) linesByLedger.set(line.ledgerId, [...(linesByLedger.get(line.ledgerId) ?? []), line])
@@ -304,16 +324,16 @@ export function buildTdsReport(input: TdsReportInput): TdsReportData {
     const openingOutstanding = round(items.filter((item) => item.opening).reduce((sum, item) => sum + item.originalAmount, 0))
     const deducted = round(items.reduce((sum, item) => sum + item.deducted, 0))
     const reversed = round(items.reduce((sum, item) => sum + item.reversed, 0))
-    const totalDue = round(Math.max(openingOutstanding + deducted - reversed, 0))
+    const totalDue = round(Math.max(openingOutstanding + deducted, 0))
     const allocations = items.flatMap((item) => item.allocations).filter((item) => item.allocatedAmount > EPSILON)
     const paymentAllocations = allocations.filter((item) => item.sourceType === 'DEPOSIT')
-    const knockedOff = round(paymentAllocations.reduce((sum, item) => sum + item.allocatedAmount, 0))
+    const knockedOff = round(allocations.reduce((sum, item) => sum + item.allocatedAmount, 0))
     const remaining = round(Math.max(totalDue - knockedOff, 0))
     const statuses = items.map((item) => statusFor(item, input.asOfDate))
     const priority: TdsStatus[] = ['REVIEW_REQUIRED', 'UNPAID_OVERDUE', 'PARTIALLY_CLEARED_OVERDUE', 'PARTIALLY_CLEARED_NOT_DUE', 'PENDING_NOT_DUE', 'CLEARED_LATE', 'CLEARED_ON_TIME', 'REVERSED']
     let chosen = statuses.sort((a, b) => priority.indexOf(a.status) - priority.indexOf(b.status))[0]
-    if (!statuses.some((item) => item.status === 'REVIEW_REQUIRED') && totalDue <= EPSILON && knockedOff <= EPSILON && reversed > EPSILON) chosen = { status: 'REVERSED', booksStatus: 'CLEARED', delayDays: null }
-    return { id: `${first.ledgerId}:${first.deductionMonth ?? 'opening'}`, ledgerId: first.ledgerId, ledgerName: first.ledgerName, tdsType: first.tdsType, sectionCode: first.sectionCode, deductionMonth: first.deductionMonth, openingOutstanding, deducted, reversed, totalDue, dueDate: items.map((item) => item.dueDate).filter((value): value is string => !!value).sort()[0] ?? null, depositDates: [...new Set(paymentAllocations.map((item) => item.sourceDate))].sort(), deposited: knockedOff, knockedOff, remaining, excess: 0, delayDays: Math.max(...statuses.map((item) => item.delayDays ?? 0), 0) || null, status: chosen.status, booksStatus: chosen.booksStatus, challanStatus: 'NOT_AVAILABLE', liabilityTransactions: items.flatMap((item) => item.liabilityTransactions), depositTransactions: items.flatMap((item) => item.depositTransactions), allocations }
+    if (!statuses.some((item) => item.status === 'REVIEW_REQUIRED') && reversed + EPSILON >= totalDue && paymentAllocations.length === 0) chosen = { status: 'REVERSED', booksStatus: 'CLEARED', delayDays: null }
+    return { id: `${first.ledgerId}:${first.deductionMonth ?? 'opening'}`, ledgerId: first.ledgerId, ledgerName: first.ledgerName, tdsType: first.tdsType, sectionCode: first.sectionCode, deductionMonth: first.deductionMonth, openingOutstanding, deducted, reversed, totalDue, dueDate: items.map((item) => item.dueDate).filter((value): value is string => !!value).sort()[0] ?? null, depositDates: [...new Set(allocations.map((item) => item.sourceDate))].sort(), deposited: knockedOff, knockedOff, remaining, excess: 0, delayDays: Math.max(...statuses.map((item) => item.delayDays ?? 0), 0) || null, status: chosen.status, booksStatus: chosen.booksStatus, challanStatus: 'NOT_AVAILABLE', liabilityTransactions: items.flatMap((item) => item.liabilityTransactions), depositTransactions: items.flatMap((item) => item.depositTransactions), allocations }
   })
 
   for (const [ledgerId, sources] of creditsByLedger) {
@@ -330,6 +350,6 @@ export function buildTdsReport(input: TdsReportInput): TdsReportData {
 
   rows.sort((a, b) => a.ledgerName.localeCompare(b.ledgerName) || (a.deductionMonth ?? '').localeCompare(b.deductionMonth ?? ''))
   const ledgerPositions = [...new Map(rows.map((row) => [row.ledgerId, row.ledgerName])).entries()].map(([ledgerId, ledgerName]) => ({ ledgerId, ledgerName, outstanding: round(rows.filter((row) => row.ledgerId === ledgerId).reduce((sum, row) => sum + row.remaining, 0)), excess: round(rows.filter((row) => row.ledgerId === ledgerId).reduce((sum, row) => sum + row.excess, 0)) }))
-  const kpis = { liabilityCreated: round(rows.reduce((sum, item) => sum + item.deducted, 0)), deposited: round(rows.reduce((sum, item) => sum + item.deposited, 0)), knockedOff: round(rows.reduce((sum, item) => sum + item.knockedOff, 0)), remaining: round(ledgerPositions.reduce((sum, item) => sum + item.outstanding, 0)), overdue: round(rows.filter((item) => ['UNPAID_OVERDUE', 'PARTIALLY_CLEARED_OVERDUE'].includes(item.status)).reduce((sum, item) => sum + item.remaining, 0)), clearedLate: round(rows.filter((item) => item.status === 'CLEARED_LATE').reduce((sum, item) => sum + item.knockedOff, 0)), excess: round(ledgerPositions.reduce((sum, item) => sum + item.excess, 0)) }
-  return { asOfDate: input.asOfDate, from: input.from, to: input.to, generatedAt: new Date().toISOString(), rows, kpis, ledgerOptions: ledgerPositions.map((item) => ({ id: item.ledgerId, label: item.ledgerName })), ledgerPositions, reconciliation }
+  const kpis = { liabilityCreated: round(rows.reduce((sum, item) => sum + item.deducted, 0)), deposited: round(rows.reduce((sum, item) => sum + item.deposited, 0)), knockedOff: round(rows.reduce((sum, item) => sum + item.knockedOff, 0)), remaining: round(ledgerPositions.reduce((sum, item) => sum + item.outstanding, 0)), overdue: round(rows.filter((item) => ['UNPAID_OVERDUE', 'PARTIALLY_CLEARED_OVERDUE'].includes(item.status)).reduce((sum, item) => sum + item.remaining, 0)), clearedLate: round(rows.reduce((sum, item) => sum + item.allocations.reduce((allocationSum, allocation) => allocationSum + allocation.lateAmount, 0), 0)), excess: round(ledgerPositions.reduce((sum, item) => sum + item.excess, 0)) }
+  return { asOfDate: input.asOfDate, from: input.from, to: input.to, latestActivityDate, generatedAt: new Date().toISOString(), rows, kpis, ledgerOptions: ledgerPositions.map((item) => ({ id: item.ledgerId, label: item.ledgerName })), ledgerPositions, reconciliation }
 }
