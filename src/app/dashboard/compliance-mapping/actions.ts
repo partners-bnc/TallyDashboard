@@ -1,8 +1,8 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { auth } from '@/lib/auth/server'
+import { revalidateComplianceViews } from '@/lib/compliance-revalidation'
 import { createNeonDataApiClient } from '@/lib/neon/data-api'
 import type { SaveTdsComplianceMappingPayload } from '@/lib/types'
 
@@ -10,6 +10,18 @@ const payloadSchema = z.object({
   orgId: z.string().uuid(),
   companyId: z.string().uuid(),
   selectedLedgerIds: z.array(z.string().uuid()).max(10000),
+})
+
+const genericPayloadSchema = z.object({
+  orgId: z.string().uuid(),
+  companyId: z.string().uuid(),
+  complianceType: z.enum(['PROMOTERS', 'GST', 'LOANS', 'ACCOUNTS_PAYABLE', 'OPEX']),
+  selectedGroups: z.array(z.string().trim().min(1).max(255)).max(10000),
+  ledgerDecisions: z.array(z.object({
+    ledgerId: z.string().uuid(),
+    selected: z.boolean(),
+    category: z.string().trim().min(1).max(255).nullable().optional(),
+  })).max(10000),
 })
 
 export type SaveTdsMappingResult = { ok: true } | { ok: false; error: string }
@@ -25,75 +37,15 @@ export async function saveTdsComplianceMapping(
   const user = session?.user
   if (sessionError || !user) return { ok: false, error: 'Your session has expired. Please sign in again.' }
 
-  const { data: membership, error: membershipError } = await client
-    .from('tb_org_members')
-    .select('org_id')
-    .eq('org_id', parsed.data.orgId)
-    .eq('user_id', user.id)
-    .maybeSingle()
-  if (membershipError || !membership) return { ok: false, error: 'You do not have access to this organization.' }
+  const { error } = await client.rpc('tb_save_tds_compliance_mapping', {
+    target_org: parsed.data.orgId,
+    target_company: parsed.data.companyId,
+    selected_ledger_ids: parsed.data.selectedLedgerIds,
+  })
 
-  // 1. Create or update profile
-  const { data: profile, error: profileError } = await client
-    .from('compliance_mapping_profiles')
-    .upsert({
-      org_id: parsed.data.orgId,
-      company_id: parsed.data.companyId,
-      compliance_type: 'TDS',
-      status: 'complete',
-      confirmed_by: user.id,
-      confirmed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'company_id,compliance_type' })
-    .select('id')
-    .single()
+  if (error) return { ok: false, error: `Could not save TDS mapping: ${error.message}` }
 
-  if (profileError || !profile) {
-    return { ok: false, error: `Could not save compliance profile: ${profileError?.message ?? 'Unknown error'}` }
-  }
-
-  // 2. Clear old decisions
-  await client.from('compliance_group_decisions').delete().eq('profile_id', profile.id)
-  await client.from('compliance_ledger_decisions').delete().eq('profile_id', profile.id)
-
-  // 3. Save group decisions: TDS is group-mapped (the root TDS group is mapped)
-  // Let's resolve the parent groups for the selected ledgers to insert group decisions
-  const { data: ledgersData } = await client
-    .from('tb_ledgers')
-    .select('id,parent_name')
-    .in('id', parsed.data.selectedLedgerIds)
-
-  const parentGroups = Array.from(new Set((ledgersData ?? []).map((l) => l.parent_name).filter(Boolean))) as string[]
-
-  if (parentGroups.length > 0) {
-    const groupInserts = parentGroups.map((groupName) => ({
-      profile_id: profile.id,
-      org_id: parsed.data.orgId,
-      company_id: parsed.data.companyId,
-      compliance_type: 'TDS',
-      group_name: groupName,
-      selected: true,
-    }))
-    await client.from('compliance_group_decisions').insert(groupInserts)
-  }
-
-  // 4. Save ledger decisions:
-  if (parsed.data.selectedLedgerIds.length > 0) {
-    const ledgerInserts = parsed.data.selectedLedgerIds.map((ledgerId) => ({
-      profile_id: profile.id,
-      org_id: parsed.data.orgId,
-      company_id: parsed.data.companyId,
-      compliance_type: 'TDS',
-      ledger_id: ledgerId,
-      selected: true,
-      category: 'PAYABLE',
-      confirmed_by: user.id,
-    }))
-    await client.from('compliance_ledger_decisions').insert(ledgerInserts)
-  }
-
-  revalidatePath('/dashboard/compliance-mapping')
-  revalidatePath('/dashboard/reports/tds-report')
+  revalidateComplianceViews('TDS')
   return { ok: true }
 }
 
@@ -112,6 +64,19 @@ export type SaveComplianceMappingPayload = {
 export async function saveComplianceMapping(
   payload: SaveComplianceMappingPayload,
 ): Promise<SaveTdsMappingResult> {
+  if (payload.complianceType === 'TDS') {
+    return saveTdsComplianceMapping({
+      orgId: payload.orgId,
+      companyId: payload.companyId,
+      selectedLedgerIds: payload.ledgerDecisions
+        .filter((decision) => decision.selected)
+        .map((decision) => decision.ledgerId),
+    })
+  }
+
+  const parsed = genericPayloadSchema.safeParse(payload)
+  if (!parsed.success) return { ok: false, error: 'The mapping contains invalid or incomplete data.' }
+
   const client = createNeonDataApiClient()
   const { data: session, error: sessionError } = await auth.getSession()
   const user = session?.user
@@ -120,65 +85,40 @@ export async function saveComplianceMapping(
   const { data: membership, error: membershipError } = await client
     .from('tb_org_members')
     .select('org_id')
-    .eq('org_id', payload.orgId)
+    .eq('org_id', parsed.data.orgId)
     .eq('user_id', user.id)
     .maybeSingle()
   if (membershipError || !membership) return { ok: false, error: 'You do not have access to this organization.' }
 
-  // 1. Create or update profile
-  const { data: profile, error: profileError } = await client
-    .from('compliance_mapping_profiles')
-    .upsert({
-      org_id: payload.orgId,
-      company_id: payload.companyId,
-      compliance_type: payload.complianceType,
-      status: 'complete',
-      confirmed_by: user.id,
-      confirmed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'company_id,compliance_type' })
-    .select('id')
-    .single()
-
-  if (profileError || !profile) {
-    return { ok: false, error: `Could not save compliance profile: ${profileError?.message}` }
-  }
-
-  // 2. Clear old decisions
-  await client.from('compliance_group_decisions').delete().eq('profile_id', profile.id)
-  await client.from('compliance_ledger_decisions').delete().eq('profile_id', profile.id)
-
-  // 3. Save group decisions
-  if (payload.selectedGroups.length > 0) {
-    const groupInserts = payload.selectedGroups.map((groupName) => ({
-      profile_id: profile.id,
-      org_id: payload.orgId,
-      company_id: payload.companyId,
-      compliance_type: payload.complianceType,
-      group_name: groupName,
-      selected: true,
-    }))
-    const { error: groupErr } = await client.from('compliance_group_decisions').insert(groupInserts)
-    if (groupErr) return { ok: false, error: `Could not save group decisions: ${groupErr.message}` }
-  }
-
-  // 4. Save ledger decisions
-  if (payload.ledgerDecisions.length > 0) {
-    const ledgerInserts = payload.ledgerDecisions.map((decision) => ({
-      profile_id: profile.id,
-      org_id: payload.orgId,
-      company_id: payload.companyId,
-      compliance_type: payload.complianceType,
+  const now = new Date().toISOString()
+  const selectedGroups = [...new Set(parsed.data.selectedGroups)]
+  const ledgerDecisions = [...new Map(parsed.data.ledgerDecisions.map((decision) => [
+    decision.ledgerId,
+    {
       ledger_id: decision.ledgerId,
       selected: decision.selected,
       category: decision.category ?? null,
+    },
+  ])).values()]
+
+  const { error: profileError } = await client
+    .from('compliance_mapping_profiles')
+    .upsert({
+      org_id: parsed.data.orgId,
+      company_id: parsed.data.companyId,
+      compliance_type: parsed.data.complianceType,
+      status: 'complete',
       confirmed_by: user.id,
-    }))
-    const { error: ledgerErr } = await client.from('compliance_ledger_decisions').insert(ledgerInserts)
-    if (ledgerErr) return { ok: false, error: `Could not save ledger decisions: ${ledgerErr.message}` }
+      confirmed_at: now,
+      selected_groups: selectedGroups,
+      ledger_decisions: ledgerDecisions,
+      updated_at: now,
+    }, { onConflict: 'company_id,compliance_type' })
+
+  if (profileError) {
+    return { ok: false, error: `Could not save compliance profile: ${profileError?.message}` }
   }
 
-  revalidatePath('/dashboard/compliance-mapping')
-  revalidatePath('/dashboard/reports/tds-report')
+  revalidateComplianceViews(parsed.data.complianceType)
   return { ok: true }
 }

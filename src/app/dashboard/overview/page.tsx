@@ -8,9 +8,12 @@ import { currentFinancialYear, TDS_BOOKS_AS_OF_DATE } from '@/lib/tds'
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ org?: string; company?: string; from?: string; to?: string }> }) {
   const params = await searchParams
   const period = normalizePeriodQuery(params.from, params.to)
-  const organizations = await listOrganizations()
+  const [organizations, requestedCompanies] = await Promise.all([
+    listOrganizations(),
+    params.org ? listCompanies(params.org) : Promise.resolve([]),
+  ])
   const organizationId = params.org && organizations.some((org) => org.id === params.org) ? params.org : undefined
-  const companies = organizationId ? await listCompanies(organizationId) : []
+  const companies = organizationId ? requestedCompanies : []
   const companyId = params.company && companies.some((company) => company.id === params.company) ? params.company : undefined
 
   // If company context is missing or invalid, redirect to onboarding selector
@@ -30,12 +33,16 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const unavailableWidgets: Array<'tds' | 'promoters' | 'gst'> = []
 
   if (period.isValid) {
-    data = await getDashboardData(companyId, period.from || undefined, period.to || undefined)
-    const [tdsResult, promoterResult, gstResult] = await Promise.allSettled([
-      getTdsReportData(companyId, tdsFrom, tdsTo, TDS_BOOKS_AS_OF_DATE),
-      getPromotersReportData(companyId, period.from || undefined, period.to || undefined),
-      getGstReportData(companyId, period.from || undefined, period.to || undefined),
+    const [dashboardResult, widgetResults] = await Promise.all([
+      getDashboardData(companyId, period.from || undefined, period.to || undefined),
+      Promise.allSettled([
+        getTdsReportData(companyId, tdsFrom, tdsTo, TDS_BOOKS_AS_OF_DATE),
+        getPromotersReportData(companyId, period.from || undefined, period.to || undefined),
+        getGstReportData(companyId, period.from || undefined, period.to || undefined),
+      ]),
     ])
+    data = dashboardResult
+    const [tdsResult, promoterResult, gstResult] = widgetResults
     if (tdsResult.status === 'fulfilled') tdsData = tdsResult.value
     else unavailableWidgets.push('tds')
     if (promoterResult.status === 'fulfilled') promoterData = promoterResult.value

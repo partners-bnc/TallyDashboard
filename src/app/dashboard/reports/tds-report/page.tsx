@@ -4,6 +4,7 @@ import { getCompanyContext, getTdsReportData } from '@/lib/data'
 import { normalizePeriodQuery } from '@/lib/period'
 import { currentFinancialYear, TDS_BOOKS_AS_OF_DATE } from '@/lib/tds'
 import { isTdsMappingComplete } from '@/lib/compliance-data'
+import { dashboardUrl } from '@/lib/dashboard-navigation'
 
 export default async function TdsReportPage({ searchParams }: { searchParams: Promise<{ org?: string; company?: string; from?: string; to?: string; ledger?: string; lockLedger?: string }> }) {
   const params = await searchParams
@@ -27,7 +28,11 @@ export default async function TdsReportPage({ searchParams }: { searchParams: Pr
     const search = new URLSearchParams()
     search.set('org', orgId)
     search.set('company', company.id)
-    const returnUrl = `/dashboard/reports/tds-report?org=${encodeURIComponent(orgId)}&company=${encodeURIComponent(company.id)}`
+    const returnUrl = dashboardUrl(
+      '/dashboard/reports/tds-report',
+      { orgId, companyId: company.id, from: params.from, to: params.to },
+      { ledger: params.ledger, lockLedger: params.lockLedger },
+    )
     search.set('returnTo', returnUrl)
     redirect(`/dashboard/compliance-mapping?${search.toString()}`)
   }

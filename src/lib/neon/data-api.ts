@@ -21,12 +21,21 @@ const getJwt = cache(async (): Promise<string> => {
 
 export const requireDataApiToken = () => getJwt()
 
+const noStoreFetch: typeof fetch = (input, init) => fetch(input, {
+  ...init,
+  cache: 'no-store',
+})
+
 const getDataApiClient = cache(() => {
   const url = process.env.NEXT_PUBLIC_NEON_DATA_API_URL
   if (!url) throw new Error('NEXT_PUBLIC_NEON_DATA_API_URL is required')
 
   return createClient<Database>({
-    dataApi: { url, getToken: getJwt },
+    dataApi: {
+      url,
+      getToken: getJwt,
+      options: { global: { fetch: noStoreFetch } },
+    },
   })
 })
 

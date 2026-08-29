@@ -41,6 +41,7 @@ $sqlFiles = @(
   'database/neon/010_functions.sql',
   'database/neon/011_view.sql',
   'database/neon/012_functions.sql',
+  'database/neon/013_generic_compliance_mapping.sql',
   'database/neon/020_security_and_roles.sql',
   'database/neon/021_sync_accounting_rpc.sql',
   'database/neon/050_refresh_data_api.sql'

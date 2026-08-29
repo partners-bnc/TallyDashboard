@@ -2,6 +2,29 @@ import 'server-only'
 
 import { createNeonDataApiClient } from '@/lib/neon/data-api'
 import { resolveLedgerGroupParents, normalizeTdsName } from '@/lib/tds-mapping'
+import type { Json } from '@/lib/types'
+
+type StoredLedgerDecision = {
+  ledger_id: string
+  selected: boolean
+  category: string | null
+}
+
+function parseStoredLedgerDecisions(value: Json): StoredLedgerDecision[] {
+  if (!Array.isArray(value)) return []
+
+  return value.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return []
+
+    const ledgerId = candidate.ledger_id
+    const selected = candidate.selected
+    const category = candidate.category
+    if (typeof ledgerId !== 'string' || typeof selected !== 'boolean') return []
+    if (category !== null && category !== undefined && typeof category !== 'string') return []
+
+    return [{ ledger_id: ledgerId, selected, category: category ?? null }]
+  })
+}
 
 export interface ComplianceMappingConfig {
   complianceType: string
@@ -17,7 +40,7 @@ export async function resolveActiveLedgers(companyId: string, complianceType: st
   // 1. Fetch mapping profile
   const { data: profile } = await client
     .from('compliance_mapping_profiles')
-    .select('id, status')
+    .select('id, status, selected_groups, ledger_decisions')
     .eq('company_id', companyId)
     .eq('compliance_type', complianceType)
     .maybeSingle()
@@ -26,26 +49,29 @@ export async function resolveActiveLedgers(companyId: string, complianceType: st
     return { activeLedgerIds: new Set<string>(), ledgerCategories: new Map<string, string>() }
   }
 
-  // 2. Fetch group decisions
-  const { data: groupDecisions } = await client
-    .from('compliance_group_decisions')
-    .select('group_name')
-    .eq('profile_id', profile.id)
-    .eq('selected', true)
+  if (complianceType === 'TDS') {
+    const { data: mappings, error } = await client
+      .from('tds_ledger_mappings')
+      .select('ledger_id')
+      .eq('company_id', companyId)
+      .eq('is_payable_ledger', true)
 
-  const selectedGroupNames = new Set((groupDecisions ?? []).map((g) => normalizeTdsName(g.group_name)))
+    if (error) throw new Error(`Could not load TDS ledger mappings: ${error.message}`)
 
-  // 3. Fetch ledger decisions (overrides)
-  const { data: ledgerDecisions } = await client
-    .from('compliance_ledger_decisions')
-    .select('ledger_id, selected, category')
-    .eq('profile_id', profile.id)
+    return {
+      activeLedgerIds: new Set((mappings ?? []).map((mapping) => mapping.ledger_id)),
+      ledgerCategories: new Map<string, string>(),
+    }
+  }
+
+  const selectedGroupNames = new Set(profile.selected_groups.map(normalizeTdsName))
+  const ledgerDecisions = parseStoredLedgerDecisions(profile.ledger_decisions)
 
   const deselectedLedgerIds = new Set<string>()
   const forcedLedgerIds = new Set<string>()
   const ledgerCategories = new Map<string, string>()
 
-  for (const decision of ledgerDecisions ?? []) {
+  for (const decision of ledgerDecisions) {
     if (decision.selected) {
       forcedLedgerIds.add(decision.ledger_id)
     } else {
@@ -56,7 +82,7 @@ export async function resolveActiveLedgers(companyId: string, complianceType: st
     }
   }
 
-  // 4. Fetch all groups and ledgers to resolve hierarchy
+  // Fetch all groups and ledgers to resolve hierarchy
   const { data: dbGroups } = await client
     .from('tb_ledger_groups')
     .select('id, name, parent_name, parent_group_id')
@@ -214,7 +240,7 @@ export async function getCentralizedMappingData(
   // Load existing decisions
   const { data: profile } = await client
     .from('compliance_mapping_profiles')
-    .select('id, status')
+    .select('id, status, selected_groups, ledger_decisions')
     .eq('company_id', companyId)
     .eq('compliance_type', config.complianceType)
     .maybeSingle()
@@ -223,33 +249,37 @@ export async function getCentralizedMappingData(
 
   const selectedGroupNames = new Set<string>()
   const ledgerDecisions = new Map<string, { selected: boolean; category: string | null }>()
+  const tdsMappedLedgerIds = new Set<string>()
 
   if (profile) {
-    const { data: groupDecisions } = await client
-      .from('compliance_group_decisions')
-      .select('group_name, selected')
-      .eq('profile_id', profile.id)
+    if (config.complianceType === 'TDS') {
+      const { data: mappings, error } = await client
+        .from('tds_ledger_mappings')
+        .select('ledger_id')
+        .eq('company_id', companyId)
+        .eq('is_payable_ledger', true)
 
-    for (const gd of groupDecisions ?? []) {
-      if (gd.selected) {
-        selectedGroupNames.add(normalizeTdsName(gd.group_name))
+      if (error) throw new Error(`Could not load TDS ledger mappings: ${error.message}`)
+      for (const mapping of mappings ?? []) tdsMappedLedgerIds.add(mapping.ledger_id)
+    } else {
+      for (const groupName of profile.selected_groups) {
+        selectedGroupNames.add(normalizeTdsName(groupName))
       }
-    }
 
-    const { data: ldDecisions } = await client
-      .from('compliance_ledger_decisions')
-      .select('ledger_id, selected, category')
-      .eq('profile_id', profile.id)
-
-    for (const ld of ldDecisions ?? []) {
-      ledgerDecisions.set(ld.ledger_id, { selected: ld.selected, category: ld.category })
+      for (const ld of parseStoredLedgerDecisions(profile.ledger_decisions)) {
+        ledgerDecisions.set(ld.ledger_id, { selected: ld.selected, category: ld.category })
+      }
     }
   }
 
   // Resolve active groups/ledgers
   const resolvedGroups = groups.map((g) => {
     const autoSuggested = config.autoSuggestGroup(g.name)
-    const selected = configured ? selectedGroupNames.has(normalizeTdsName(g.name)) : autoSuggested
+    const selected = config.complianceType === 'TDS'
+      ? autoSuggested
+      : configured
+        ? selectedGroupNames.has(normalizeTdsName(g.name))
+        : autoSuggested
     return {
       groupId: g.groupId,
       name: g.name,
@@ -297,8 +327,18 @@ export async function getCentralizedMappingData(
 
     const decision = ledgerDecisions.get(ledger.id)
     const inActiveGroup = parentGroupId ? recursiveActiveGroupIds.has(parentGroupId) : false
-    const selected = decision ? decision.selected : (configured ? false : inActiveGroup)
-    const category = decision?.category ?? (selected ? config.defaultCategory : null)
+    const selected = config.complianceType === 'TDS'
+      ? configured
+        ? tdsMappedLedgerIds.has(ledger.id)
+        : inActiveGroup
+      : decision
+        ? decision.selected
+        : configured
+          ? false
+          : inActiveGroup
+    const category = config.complianceType === 'TDS'
+      ? selected ? config.defaultCategory : null
+      : decision?.category ?? (selected ? config.defaultCategory : null)
 
     return {
       ledgerId: ledger.id,

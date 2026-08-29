@@ -27,3 +27,7 @@ the authenticated-only public wrapper and private implementation in
 The source exposes 11 distinct live function names (the planning document
 grouped these as 10); those plus the accounting sync RPC are checked by
 `verify.ps1`.
+
+Non-TDS report mappings are stored directly on `compliance_mapping_profiles`
+by `013_generic_compliance_mapping.sql`. This preserves the curated 16-table
+contract instead of recreating the obsolete group/ledger decision tables.

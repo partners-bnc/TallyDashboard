@@ -87,6 +87,7 @@ export async function getDashboardData(companyId: string, from?: string, to?: st
     client.from('tb_ledgers').select('id,org_id,company_id,name,parent_name,opening_balance,closing_balance,is_deleted').eq('company_id', companyId).eq('is_deleted', false).order('name').limit(1000),
   ])
   if (syncResult.error || companyResult.error || ledgersResult.error) throw new Error('Could not load dashboard history status')
+  if (!companyResult.data) throw new Error('Dashboard company became unavailable during the request')
   const syncError = syncResult.data?.last_error ?? companyResult.data?.last_sync_error ?? null
   const lastSyncedAt = syncResult.data?.last_voucher_sync_at ?? companyResult.data?.last_successful_sync_at ?? syncResult.data?.last_ledger_sync_at ?? null
   const sync = { status: syncError ? 'error' : lastSyncedAt ? 'synced' : null, lastSyncedAt, error: syncError }
@@ -110,6 +111,7 @@ export async function getDashboardData(companyId: string, from?: string, to?: st
     : { data: [], error: null }
   if (recentLinesResult.error) throw new Error(`Could not load recent voucher amounts: ${recentLinesResult.error.message}`)
   const totals = movementTotalsResult.data?.[0]
+  if (!totals) throw new Error('Dashboard totals query returned no aggregate row')
   const periods = new Map((monthlyMovementResult.data ?? []).map((period) => [period.period, { debit: asNumber(period.debit_total), credit: asNumber(period.credit_total) }]))
   const lineAmounts = new Map<string, number>()
   for (const line of recentLinesResult.data ?? []) {

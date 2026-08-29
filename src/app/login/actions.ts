@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth/server'
 
 export type LoginState = { error: string }
@@ -28,5 +29,8 @@ export async function login(_previousState: LoginState, formData: FormData): Pro
     }
   }
 
+  // Authentication changes the RLS identity used by every dashboard query.
+  // Discard any page payload created before the new session cookie existed.
+  revalidatePath('/dashboard', 'layout')
   redirect('/dashboard')
 }

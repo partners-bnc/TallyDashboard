@@ -20,6 +20,32 @@ describe('resolveActiveLedgers', () => {
     expect(result.activeLedgerIds.size).toBe(0)
   })
 
+  it('loads completed TDS selections from the final ledger mapping table', async () => {
+    const fromCalls: string[] = []
+    const mockClient = {
+      from: vi.fn((table) => {
+        fromCalls.push(table)
+        return mockClient
+      }),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { id: 'profile-tds', status: 'complete' },
+        error: null,
+      }),
+      then: vi.fn().mockImplementation((resolve) => Promise.resolve(resolve({
+        data: [{ ledger_id: 'ledger-tds-rent' }, { ledger_id: 'ledger-tds-salary' }],
+        error: null,
+      }))),
+    }
+    vi.mocked(createNeonDataApiClient).mockReturnValue(mockClient as any)
+
+    const result = await resolveActiveLedgers('company-123', 'TDS')
+
+    expect(fromCalls).toEqual(['compliance_mapping_profiles', 'tds_ledger_mappings'])
+    expect([...result.activeLedgerIds]).toEqual(['ledger-tds-rent', 'ledger-tds-salary'])
+  })
+
   it('correctly resolves active ledgers: group + forced selections - deselections', async () => {
     const fromCalls: string[] = []
     const mockClient = {
@@ -33,21 +59,25 @@ describe('resolveActiveLedgers', () => {
       maybeSingle: vi.fn().mockImplementation(async () => {
         const table = fromCalls[fromCalls.length - 1]
         if (table === 'compliance_mapping_profiles') {
-          return { data: { id: 'profile-123', status: 'complete' }, error: null }
+          return {
+            data: {
+              id: 'profile-123',
+              status: 'complete',
+              selected_groups: ['Unsecured Loans'],
+              ledger_decisions: [
+                { ledger_id: 'ledger-forced', selected: true, category: 'OTHER' },
+                { ledger_id: 'ledger-deselected', selected: false, category: null },
+              ],
+            },
+            error: null,
+          }
         }
         return { data: null, error: null }
       }),
       then: vi.fn().mockImplementation((resolve) => {
         const table = fromCalls[fromCalls.length - 1]
         let data: any = []
-        if (table === 'compliance_group_decisions') {
-          data = [{ group_name: 'Unsecured Loans' }]
-        } else if (table === 'compliance_ledger_decisions') {
-          data = [
-            { ledger_id: 'ledger-forced', selected: true, category: 'OTHER' },
-            { ledger_id: 'ledger-deselected', selected: false, category: null },
-          ]
-        } else if (table === 'tb_ledger_groups') {
+        if (table === 'tb_ledger_groups') {
           data = [
             { id: 'group-loans', name: 'Unsecured Loans', parent_name: null, parent_group_id: null },
             { id: 'group-loans-sub', name: 'Director Loans', parent_name: 'Unsecured Loans', parent_group_id: 'group-loans' },
@@ -72,6 +102,7 @@ describe('resolveActiveLedgers', () => {
     expect(result.activeLedgerIds.has('ledger-forced')).toBe(true) // forced inclusion
     expect(result.activeLedgerIds.has('ledger-deselected')).toBe(false) // forced exclusion
     expect(result.activeLedgerIds.has('ledger-outside')).toBe(false) // outside
+    expect(fromCalls).toEqual(['compliance_mapping_profiles', 'tb_ledger_groups', 'tb_ledgers'])
   })
 
   it('excludes subgroup ledgers if parent is selected but subgroup was explicitly not selected (indicated by sibling selection)', async () => {
@@ -87,22 +118,22 @@ describe('resolveActiveLedgers', () => {
       maybeSingle: vi.fn().mockImplementation(async () => {
         const table = fromCalls[fromCalls.length - 1]
         if (table === 'compliance_mapping_profiles') {
-          return { data: { id: 'profile-999', status: 'complete' }, error: null }
+          return {
+            data: {
+              id: 'profile-999',
+              status: 'complete',
+              selected_groups: ['Duties & Taxes', 'GST'],
+              ledger_decisions: [],
+            },
+            error: null,
+          }
         }
         return { data: null, error: null }
       }),
       then: vi.fn().mockImplementation((resolve) => {
         const table = fromCalls[fromCalls.length - 1]
         let data: any = []
-        if (table === 'compliance_group_decisions') {
-          // Parent 'Duties & Taxes' and child 'GST' are selected. Child 'TDS' is NOT.
-          data = [
-            { group_name: 'Duties & Taxes' },
-            { group_name: 'GST' }
-          ]
-        } else if (table === 'compliance_ledger_decisions') {
-          data = []
-        } else if (table === 'tb_ledger_groups') {
+        if (table === 'tb_ledger_groups') {
           data = [
             { id: 'group-taxes', name: 'Duties & Taxes', parent_name: null, parent_group_id: null },
             { id: 'group-gst', name: 'GST', parent_name: 'Duties & Taxes', parent_group_id: 'group-taxes' },
@@ -122,5 +153,6 @@ describe('resolveActiveLedgers', () => {
     const result = await resolveActiveLedgers('company-123', 'GST')
     expect(result.activeLedgerIds.has('ledger-gst')).toBe(true) // Selected child is active
     expect(result.activeLedgerIds.has('ledger-tds')).toBe(false) // Unselected sibling child is excluded
+    expect(fromCalls).toEqual(['compliance_mapping_profiles', 'tb_ledger_groups', 'tb_ledgers'])
   })
 })

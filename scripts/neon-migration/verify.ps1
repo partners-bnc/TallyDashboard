@@ -116,6 +116,33 @@ select jsonb_build_object(
     where has_table_privilege('authenticated', format('public.%I', table_name), 'INSERT,UPDATE,DELETE')
   ),
   'view', to_regclass('public.tb_ledger_voucher_lines') is not null,
+  'function_allowlist_exact',
+    not exists (
+      select 1
+      from pg_proc p
+      join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname='public'
+        and p.proname like 'tb\_%' escape '\'
+        and p.proname not in (
+          'tb_is_member','tb_voucher_affects_books','tb_dashboard_movement_totals','tb_dashboard_monthly_movement',
+          'tb_dashboard_voucher_type_counts','tb_history_coverage','tb_ledger_monthly_summary','tb_trial_balance',
+          'tb_trial_balance_verification','tb_tds_source_lines','tb_save_tds_compliance_mapping','tb_sync_accounting_data'
+        )
+    )
+    and not exists (
+      select 1
+      from (values
+        ('tb_is_member'),('tb_voucher_affects_books'),('tb_dashboard_movement_totals'),('tb_dashboard_monthly_movement'),
+        ('tb_dashboard_voucher_type_counts'),('tb_history_coverage'),('tb_ledger_monthly_summary'),('tb_trial_balance'),
+        ('tb_trial_balance_verification'),('tb_tds_source_lines'),('tb_save_tds_compliance_mapping'),('tb_sync_accounting_data')
+      ) expected(name)
+      where not exists (
+        select 1
+        from pg_proc p
+        join pg_namespace n on n.oid=p.pronamespace
+        where n.nspname='public' and p.proname=expected.name
+      )
+    ),
   'functions', (select count(distinct proname) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and proname in (
     'tb_is_member','tb_voucher_affects_books','tb_dashboard_movement_totals','tb_dashboard_monthly_movement',
     'tb_dashboard_voucher_type_counts','tb_history_coverage','tb_ledger_monthly_summary','tb_trial_balance',
@@ -134,6 +161,7 @@ if ($targetContract.rpc_anonymous -or $targetContract.rpc_public) { throw 'The a
 if ($targetContract.private_schema_authenticated) { throw 'Authenticated clients can access the private ingestion schema.' }
 if ($targetContract.direct_accounting_writes) { throw 'Authenticated clients have direct accounting-table write privileges.' }
 if (-not $targetContract.view) { throw 'tb_ledger_voucher_lines is missing.' }
+if (-not $targetContract.function_allowlist_exact) { throw 'The public tb_* function set differs from the exact allowlist.' }
 if ([int]$targetContract.functions -ne 12) { throw "Expected all 12 live public function names; found $($targetContract.functions)." }
 
 $membershipSql = @"

@@ -63,6 +63,7 @@ $function$;
 CREATE OR REPLACE FUNCTION public.tb_save_tds_compliance_mapping(target_org uuid, target_company uuid, selected_ledger_ids uuid[])
  RETURNS jsonb
  LANGUAGE plpgsql
+ SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 declare
