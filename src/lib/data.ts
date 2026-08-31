@@ -880,9 +880,9 @@ export async function getPromotersReportData(companyId: string, from?: string, t
 export interface AccountsPayableLedgerPosition {
   ledgerId: string
   ledgerName: string
-  openingBalance: number
-  closingBalance: number
-  netMovement: number
+  parentName: string
+  debitBalance: number
+  creditBalance: number
 }
 
 export interface AccountsPayableVoucherEntry {
@@ -900,10 +900,10 @@ export interface AccountsPayableVoucherEntry {
 
 export interface AccountsPayableReportData {
   companyId: string
-  totalPayables: number
-  openingPayables: number
-  netMovement: number
-  transactionCount: number
+  totalDebitBalance: number
+  totalCreditBalance: number
+  netBalance: number
+  netNature: 'Dr' | 'Cr'
   ledgers: AccountsPayableLedgerPosition[]
   entriesByLedger: Record<string, AccountsPayableVoucherEntry[]>
 }
@@ -914,34 +914,71 @@ export async function getAccountsPayableData(companyId: string, from?: string, t
   const mappedIds = Array.from(activeMapping.activeLedgerIds)
 
   if (mappedIds.length === 0) {
-    return { companyId, totalPayables: 0, openingPayables: 0, netMovement: 0, transactionCount: 0, ledgers: [], entriesByLedger: {} }
+    return {
+      companyId,
+      totalDebitBalance: 0,
+      totalCreditBalance: 0,
+      netBalance: 0,
+      netNature: 'Dr',
+      ledgers: [],
+      entriesByLedger: {},
+    }
   }
 
-  const dbLedgers: any[] = []
+  const [ledgerResult, groupResult, balanceResult] = await Promise.all([
+    client
+      .from('tb_ledgers')
+      .select('id,name,parent_name,parent_group_id')
+      .eq('company_id', companyId)
+      .eq('is_deleted', false),
+    client
+      .from('tb_ledger_groups')
+      .select('id,name,parent_name,parent_group_id')
+      .eq('company_id', companyId)
+      .eq('is_deleted', false),
+    client.rpc('tb_trial_balance', {
+      target_company: companyId,
+      from_date: from ?? null,
+      to_date: to ?? null,
+    }),
+  ])
+
+  const error = ledgerResult.error ?? groupResult.error ?? balanceResult.error
+  if (error) {
+    throw new Error(`Could not load Accounts Payable trial balance: ${error.message}`)
+  }
+
+  const balanceByLedgerId = new Map((balanceResult.data ?? []).map((row: any) => [row.ledger_id, row]))
+  const mappedIdsSet = new Set(mappedIds)
+
+  const ledgers: AccountsPayableLedgerPosition[] = (ledgerResult.data ?? [])
+    .filter((l) => mappedIdsSet.has(l.id))
+    .map((ledger): AccountsPayableLedgerPosition => {
+      const row = balanceByLedgerId.get(ledger.id)
+      const closingBalance = Number(row?.closing_balance ?? 0)
+      return {
+        ledgerId: ledger.id,
+        ledgerName: row?.ledger_name ?? ledger.name,
+        parentName: row?.parent_name ?? ledger.parent_name ?? 'Unassigned',
+        debitBalance: row?.debit_balance == null ? Math.max(-closingBalance, 0) : Number(row.debit_balance),
+        creditBalance: row?.credit_balance == null ? Math.max(closingBalance, 0) : Number(row.credit_balance),
+      }
+    })
+    .sort((a, b) => a.parentName.localeCompare(b.parentName) || a.ledgerName.localeCompare(b.ledgerName))
+
+  const totalDebitBalance = ledgers.reduce((sum, ledger) => sum + ledger.debitBalance, 0)
+  const totalCreditBalance = ledgers.reduce((sum, ledger) => sum + ledger.creditBalance, 0)
+  const difference = totalDebitBalance - totalCreditBalance
+
+  // Fetch voucher lines in chunks to avoid HTTP URI limit issues
   const rawLines: any[] = []
   const chunkSize = 50
-  
   for (let i = 0; i < mappedIds.length; i += chunkSize) {
     const chunkIds = mappedIds.slice(i, i + chunkSize)
-    
-    // Fetch ledgers for chunk
-    const ledgersResult = await client
-      .from('tb_ledgers')
-      .select('id, name, opening_balance, closing_balance')
-      .eq('company_id', companyId)
-      .in('id', chunkIds)
-      .eq('is_deleted', false)
-      
-    if (ledgersResult.error) {
-      throw new Error(`Could not load AP ledgers: ${ledgersResult.error.message}`)
-    }
-    dbLedgers.push(...(ledgersResult.data ?? []))
-
-    // Fetch voucher lines for chunk
     let page = 0
     const pageSize = 1000
     let hasMore = true
-    
+
     while (hasMore) {
       const linesQuery = client
         .from('tb_ledger_voucher_lines')
@@ -957,7 +994,7 @@ export async function getAccountsPayableData(companyId: string, from?: string, t
 
       const linesResult = await linesQuery
       if (linesResult.error) {
-        throw new Error(`Could not load AP voucher lines: ${linesResult.error.message}`)
+        throw new Error(`Could not load Accounts Payable voucher lines: ${linesResult.error.message}`)
       }
 
       const pageData = linesResult.data ?? []
@@ -970,19 +1007,6 @@ export async function getAccountsPayableData(companyId: string, from?: string, t
       }
     }
   }
-
-  const ledgers: AccountsPayableLedgerPosition[] = dbLedgers.map(l => {
-    const lines = rawLines.filter(line => line.ledger_id === l.id)
-    const totalCredit = lines.reduce((sum, line) => sum + Number(line.credit_amount ?? 0), 0)
-    const totalDebit = lines.reduce((sum, line) => sum + Number(line.debit_amount ?? 0), 0)
-    return {
-      ledgerId: l.id,
-      ledgerName: l.name,
-      openingBalance: Number(l.opening_balance ?? 0),
-      closingBalance: Number(l.closing_balance ?? 0),
-      netMovement: totalCredit - totalDebit,
-    }
-  })
 
   const entriesByLedger: Record<string, AccountsPayableVoucherEntry[]> = {}
   for (const line of rawLines) {
@@ -1005,16 +1029,21 @@ export async function getAccountsPayableData(companyId: string, from?: string, t
     entriesByLedger[line.ledger_id] = entries
   }
 
-  const totalPayables = ledgers.reduce((s, l) => s + l.closingBalance, 0)
-  const openingPayables = ledgers.reduce((s, l) => s + l.openingBalance, 0)
-  const netMovement = ledgers.reduce((s, l) => s + l.netMovement, 0)
-
-  return { companyId, totalPayables, openingPayables, netMovement, transactionCount: rawLines.length, ledgers, entriesByLedger }
+  return {
+    companyId,
+    totalDebitBalance: Math.round((totalDebitBalance + Number.EPSILON) * 100) / 100,
+    totalCreditBalance: Math.round((totalCreditBalance + Number.EPSILON) * 100) / 100,
+    netBalance: Math.round((Math.abs(difference) + Number.EPSILON) * 100) / 100,
+    netNature: difference >= 0 ? 'Dr' : 'Cr',
+    ledgers,
+    entriesByLedger,
+  }
 }
 
 export interface OperatingExpenditureLedgerPosition {
   ledgerId: string
   ledgerName: string
+  parentName: string
   openingBalance: number
   closingBalance: number
   netMovement: number
@@ -1052,31 +1081,56 @@ export async function getOperatingExpenditureReportData(companyId: string, from?
     return { companyId, totalOpex: 0, openingOpex: 0, netMovement: 0, transactionCount: 0, ledgers: [], entriesByLedger: {} }
   }
 
-  const dbLedgers: any[] = []
+  // 1. Fetch ledgers and trial balance
+  const [ledgerResult, balanceResult] = await Promise.all([
+    client
+      .from('tb_ledgers')
+      .select('id,name,parent_name,parent_group_id')
+      .eq('company_id', companyId)
+      .eq('is_deleted', false),
+    client.rpc('tb_trial_balance', {
+      target_company: companyId,
+      from_date: from ?? null,
+      to_date: to ?? null,
+    }),
+  ])
+
+  if (ledgerResult.error) {
+    throw new Error(`Could not load Operating Expenditure ledgers: ${ledgerResult.error.message}`)
+  }
+  if (balanceResult.error) {
+    throw new Error(`Could not load Operating Expenditure trial balance: ${balanceResult.error.message}`)
+  }
+
+  const balanceByLedgerId = new Map((balanceResult.data ?? []).map((row: any) => [row.ledger_id, row]))
+  const mappedIdsSet = new Set(mappedIds)
+
+  const ledgers: OperatingExpenditureLedgerPosition[] = (ledgerResult.data ?? [])
+    .filter((l) => mappedIdsSet.has(l.id))
+    .map((ledger): OperatingExpenditureLedgerPosition => {
+      const row = balanceByLedgerId.get(ledger.id)
+      const openingBalance = Number(row?.opening_balance ?? 0)
+      const closingBalance = Number(row?.closing_balance ?? 0)
+      return {
+        ledgerId: ledger.id,
+        ledgerName: row?.ledger_name ?? ledger.name,
+        parentName: row?.parent_name ?? ledger.parent_name ?? 'Unassigned',
+        openingBalance,
+        closingBalance,
+        netMovement: closingBalance - openingBalance,
+      }
+    })
+    .sort((a, b) => a.parentName.localeCompare(b.parentName) || a.ledgerName.localeCompare(b.ledgerName))
+
+  // 2. Fetch voucher lines in chunks to avoid HTTP URI limit issues
   const rawLines: any[] = []
   const chunkSize = 50
-  
   for (let i = 0; i < mappedIds.length; i += chunkSize) {
     const chunkIds = mappedIds.slice(i, i + chunkSize)
-    
-    // Fetch ledgers for chunk
-    const ledgersResult = await client
-      .from('tb_ledgers')
-      .select('id, name, opening_balance, closing_balance')
-      .eq('company_id', companyId)
-      .in('id', chunkIds)
-      .eq('is_deleted', false)
-      
-    if (ledgersResult.error) {
-      throw new Error(`Could not load Operating Expenditure ledgers: ${ledgersResult.error.message}`)
-    }
-    dbLedgers.push(...(ledgersResult.data ?? []))
-
-    // Fetch voucher lines for chunk
     let page = 0
     const pageSize = 1000
     let hasMore = true
-    
+
     while (hasMore) {
       const linesQuery = client
         .from('tb_ledger_voucher_lines')
@@ -1106,19 +1160,6 @@ export async function getOperatingExpenditureReportData(companyId: string, from?
     }
   }
 
-  const ledgers: OperatingExpenditureLedgerPosition[] = dbLedgers.map(l => {
-    const lines = rawLines.filter(line => line.ledger_id === l.id)
-    const totalCredit = lines.reduce((sum, line) => sum + Number(line.credit_amount ?? 0), 0)
-    const totalDebit = lines.reduce((sum, line) => sum + Number(line.debit_amount ?? 0), 0)
-    return {
-      ledgerId: l.id,
-      ledgerName: l.name,
-      openingBalance: Number(l.opening_balance ?? 0),
-      closingBalance: Number(l.closing_balance ?? 0),
-      netMovement: totalDebit - totalCredit,
-    }
-  })
-
   const entriesByLedger: Record<string, OperatingExpenditureVoucherEntry[]> = {}
   for (const line of rawLines) {
     if (!line.ledger_id) continue
@@ -1142,7 +1183,15 @@ export async function getOperatingExpenditureReportData(companyId: string, from?
 
   const totalOpex = ledgers.reduce((s, l) => s + l.closingBalance, 0)
   const openingOpex = ledgers.reduce((s, l) => s + l.openingBalance, 0)
-  const netMovement = ledgers.reduce((s, l) => s + l.netMovement, 0)
+  const netMovement = totalOpex - openingOpex
 
-  return { companyId, totalOpex, openingOpex, netMovement, transactionCount: rawLines.length, ledgers, entriesByLedger }
+  return {
+    companyId,
+    totalOpex: Math.round((totalOpex + Number.EPSILON) * 100) / 100,
+    openingOpex: Math.round((openingOpex + Number.EPSILON) * 100) / 100,
+    netMovement: Math.round((netMovement + Number.EPSILON) * 100) / 100,
+    transactionCount: rawLines.length,
+    ledgers,
+    entriesByLedger,
+  }
 }
