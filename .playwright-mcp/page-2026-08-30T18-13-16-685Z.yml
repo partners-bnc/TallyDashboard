@@ -1,0 +1,91 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - banner [ref=f3e4]:
+      - generic [ref=f3e6]:
+        - generic [ref=f3e7]:
+          - button [ref=f3e8] [cursor=pointer]
+          - link [ref=f3e10] [cursor=pointer]:
+            - /url: /
+            - img "TallyOne Ai" [ref=f3e11]
+        - navigation [ref=f3e12]:
+          - link "Home" [ref=f3e13] [cursor=pointer]:
+            - /url: /
+          - button "Services" [ref=f3e15] [cursor=pointer]
+          - button "Reports" [ref=f3e19] [cursor=pointer]
+          - link "Tools" [ref=f3e22] [cursor=pointer]:
+            - /url: /tools
+        - generic [ref=f3e23]:
+          - button "Toggle dark mode" [ref=f3e24] [cursor=pointer]
+          - generic [ref=f3e27]:
+            - generic [ref=f3e28]: partners@bncglobal.in
+            - button "Logout" [ref=f3e29] [cursor=pointer]
+    - main [ref=f3e34]:
+      - generic [ref=f3e36]:
+        - heading "Select Workspace" [level=1] [ref=f3e40]
+        - paragraph [ref=f3e41]: Choose an organization and company to load your Tally financial dashboard.
+        - generic [ref=f3e42]:
+          - generic [ref=f3e43]:
+            - generic [ref=f3e44]: Organization
+            - combobox [ref=f3e46] [cursor=pointer]:
+              - option "Select organization" [selected]
+              - option "TallyBridge Demo Org"
+          - generic [ref=f3e47]:
+            - generic [ref=f3e48]: Company
+            - combobox [disabled] [ref=f3e50]:
+              - option "Select organization first" [selected]
+          - link "Enter Workspace" [disabled]:
+            - /url: "#"
+    - contentinfo [ref=f3e51]:
+      - generic [ref=f3e52]:
+        - generic [ref=f3e53]:
+          - generic [ref=f3e54]:
+            - img "TallyOne Ai" [ref=f3e56]
+            - paragraph [ref=f3e57]: Your All-in-One Tally Companion for real-time local & server integration, automated MIS reporting, and AI financial analysis.
+          - generic [ref=f3e58]:
+            - heading "Product" [level=3] [ref=f3e59]
+            - list [ref=f3e60]:
+              - listitem [ref=f3e61]:
+                - link "Features" [ref=f3e62] [cursor=pointer]:
+                  - /url: /#features
+              - listitem [ref=f3e63]:
+                - link "Pricing" [ref=f3e64] [cursor=pointer]:
+                  - /url: /#pricing
+              - listitem [ref=f3e65]:
+                - link "Documentation" [ref=f3e66] [cursor=pointer]:
+                  - /url: /docs
+              - listitem [ref=f3e67]:
+                - link "API Access" [ref=f3e68] [cursor=pointer]:
+                  - /url: /api
+          - generic [ref=f3e69]:
+            - heading "Company" [level=3] [ref=f3e70]
+            - list [ref=f3e71]:
+              - listitem [ref=f3e72]:
+                - link "About Us" [ref=f3e73] [cursor=pointer]:
+                  - /url: /about
+              - listitem [ref=f3e74]:
+                - link "Careers" [ref=f3e75] [cursor=pointer]:
+                  - /url: /careers
+              - listitem [ref=f3e76]:
+                - link "Blog" [ref=f3e77] [cursor=pointer]:
+                  - /url: /blog
+              - listitem [ref=f3e78]:
+                - link "Contact" [ref=f3e79] [cursor=pointer]:
+                  - /url: /contact
+          - generic [ref=f3e80]:
+            - heading "Legal" [level=3] [ref=f3e81]
+            - list [ref=f3e82]:
+              - listitem [ref=f3e83]:
+                - link "Privacy Policy" [ref=f3e84] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=f3e85]:
+                - link "Terms of Service" [ref=f3e86] [cursor=pointer]:
+                  - /url: /terms
+        - paragraph [ref=f3e88]: © 2026 TallyOne Ai — All rights reserved.
+  - button "Open Next.js Dev Tools" [ref=f3e94] [cursor=pointer]:
+    - generic [ref=f3e97]:
+      - text: Compiling
+      - generic [ref=f3e98]:
+        - generic [ref=f3e99]: .
+        - generic [ref=f3e100]: .
+        - generic [ref=f3e101]: .
+  - alert [ref=f3e102]

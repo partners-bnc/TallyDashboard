@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DashboardSelector } from './dashboard-selector'
 import type { Company, Organization } from '@/lib/types'
 
-const navigation = vi.hoisted(() => ({ replace: vi.fn() }))
+const assignDocument = vi.hoisted(() => vi.fn())
 
-vi.mock('next/navigation', () => ({ useRouter: () => navigation }))
+vi.mock('@/lib/document-navigation', () => ({ assignDocument }))
 vi.mock('@/components/ui/Header', () => ({ default: () => null }))
 vi.mock('@/components/ui/Footer', () => ({ default: () => null }))
 
@@ -26,16 +26,16 @@ describe('DashboardSelector', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(cleanup)
 
-  it('changes organization with App Router navigation', () => {
+  it('changes organization with a full document navigation', () => {
     render(<DashboardSelector organizations={[organization]} companies={[]} selectedOrganizationId={null} selectedCompanyId={null} />)
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: organization.id } })
-    expect(navigation.replace).toHaveBeenCalledWith('/dashboard?org=org-1')
+    expect(assignDocument).toHaveBeenCalledWith('/dashboard?org=org-1')
   })
 
   it('navigates directly to the selected company overview', () => {
     render(<DashboardSelector organizations={[organization]} companies={[company]} selectedOrganizationId={organization.id} selectedCompanyId={null} />)
     fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: company.id } })
-    expect(navigation.replace).toHaveBeenCalledWith('/dashboard/overview?org=org-1&company=company-1')
+    expect(assignDocument).toHaveBeenCalledWith('/dashboard/overview?org=org-1&company=company-1')
   })
 
   it('shows a genuine no-membership state instead of an empty selector', () => {

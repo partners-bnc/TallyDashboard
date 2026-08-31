@@ -3,15 +3,17 @@
 import { useActionState } from 'react'
 import Link from 'next/link'
 import { login, type LoginState } from './actions'
+import { LoginNavigation } from './login-navigation'
 
 import illustration from '@/assets/mX2lljSONA.svg'
 import styles from './login.module.css'
 
 export default function LoginPage() {
-  const [state, formAction, busy] = useActionState<LoginState, FormData>(login, { error: '' })
+  const [state, formAction, busy] = useActionState<LoginState, FormData>(login, { error: '', success: false })
 
   return (
     <main className={styles.page}>
+      <LoginNavigation success={state.success} />
       <section className={styles.panel}>
         <div className="absolute top-8 left-8 md:left-12">
           <Link href="/">
@@ -71,10 +73,10 @@ export default function LoginPage() {
 
             <button 
               type="submit" 
-              disabled={busy}
+              disabled={busy || state.success}
               className="w-full h-11 bg-primary hover:bg-primary/95 text-white font-semibold rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center text-sm font-inter mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {busy ? 'Signing in...' : 'Sign In'}
+              {busy || state.success ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 

@@ -1,8 +1,10 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
+import { authClient } from '@/lib/auth/client'
 
 type Mode = 'light' | 'dark'
 
@@ -19,8 +21,24 @@ export function useThemeMode() {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const { data: session, isPending: isSessionPending } = authClient.useSession()
+  const previousSessionId = useRef<string | null>(null)
+  const hasLoadedSession = useRef(false)
   const [mode, setMode] = useState<Mode>('light')
   const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    if (isSessionPending) return
+
+    const sessionId = session?.session.id ?? null
+    if (hasLoadedSession.current && previousSessionId.current !== sessionId) {
+      router.refresh()
+    }
+
+    previousSessionId.current = sessionId
+    hasLoadedSession.current = true
+  }, [isSessionPending, router, session?.session.id])
 
   useEffect(() => {
     const savedMode = localStorage.getItem('theme-mode') as Mode | null

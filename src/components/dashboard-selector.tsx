@@ -1,13 +1,12 @@
 'use client'
 
-import { useTransition } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { ArrowRight, Building2, Landmark, Loader2 } from 'lucide-react'
 import type { Company, Organization } from '@/lib/types'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
 import { overviewUrl, workspaceSelectorUrl } from '@/lib/dashboard-navigation'
+import { assignDocument } from '@/lib/document-navigation'
 
 interface DashboardSelectorProps {
   organizations: Organization[]
@@ -22,16 +21,17 @@ export function DashboardSelector({
   selectedOrganizationId,
   selectedCompanyId,
 }: DashboardSelectorProps) {
-  const router = useRouter()
-  const [isTransitioning, startTransition] = useTransition()
+  const [isTransitioning, setIsTransitioning] = useState(false)
   
   const handleOrgChange = (orgId: string) => {
-    startTransition(() => router.replace(workspaceSelectorUrl(orgId)))
+    setIsTransitioning(true)
+    assignDocument(workspaceSelectorUrl(orgId))
   }
 
   const handleCompanyChange = (companyId: string) => {
     if (!selectedOrganizationId || !companyId) return
-    startTransition(() => router.replace(overviewUrl({ orgId: selectedOrganizationId, companyId })))
+    setIsTransitioning(true)
+    assignDocument(overviewUrl({ orgId: selectedOrganizationId, companyId }))
   }
 
   const destinationUrl = selectedOrganizationId && selectedCompanyId
@@ -119,7 +119,7 @@ export function DashboardSelector({
               </div>
 
               {/* Navigation Action */}
-              <Link
+              <a
                 href={destinationUrl}
                 aria-disabled={!selectedCompanyId || isTransitioning}
                 tabIndex={!selectedCompanyId || isTransitioning ? -1 : undefined}
@@ -138,7 +138,7 @@ export function DashboardSelector({
                     <ArrowRight size={16} />
                   </>
                 )}
-              </Link>
+              </a>
 
               {isTransitioning && (
                 <div className="flex items-center justify-center gap-2 text-slate-400 mt-1">

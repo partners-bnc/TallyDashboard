@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - link [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img "TallyOne Ai" [ref=e7]
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - heading "Welcome back" [level=1] [ref=e10]
+          - paragraph [ref=e11]: Sign in to manage Tally accounting, MIS reporting, and email triggers.
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - generic [ref=e14]: Email Address
+            - textbox "you@example.com" [ref=e15]
+          - generic [ref=e16]:
+            - generic [ref=e17]: Password
+            - textbox "••••••••" [ref=e18]
+          - button "Sign In" [ref=e19] [cursor=pointer]
+        - paragraph [ref=e20]: Access is read-only and secured by your existing TallyOne Ai organization membership.
+    - complementary [ref=e21]:
+      - img "Animated Illustration" [ref=e23]
+      - generic [ref=e24]:
+        - paragraph [ref=e26]: One source of truth
+        - strong [ref=e27]: Decisions start with a reconciled view.
+        - generic [ref=e28]: All amounts are shown in INR and follow Tally local / cloud database debit and credit semantics.
+  - button "Open Next.js Dev Tools" [ref=e34] [cursor=pointer]

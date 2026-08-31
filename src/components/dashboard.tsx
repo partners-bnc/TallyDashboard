@@ -13,6 +13,7 @@ import type { GstReportData } from '@/lib/gst-data'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
 import { dashboardUrl, overviewUrl, workspaceSelectorUrl } from '@/lib/dashboard-navigation'
+import { assignDocument } from '@/lib/document-navigation'
 import styles from './dashboard.module.css'
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
@@ -89,6 +90,8 @@ export function Dashboard({
   const [groupSearch, setGroupSearch] = useState('')
   const [dateOpen, setDateOpen] = useState(false)
   const [isTransitioning, startNavigation] = useTransition()
+  const [isWorkspaceNavigating, setIsWorkspaceNavigating] = useState(false)
+  const isNavigationPending = isTransitioning || isWorkspaceNavigating
   const selectedOrg = organizations.find((org) => org.id === selectedOrganizationId)
   const selectedCompany = companies.find((company) => company.id === selectedCompanyId)
   const totalTdsOutstanding = tdsData?.ledgerPositions.reduce((sum, position) => sum + position.outstanding, 0) ?? 0
@@ -163,14 +166,15 @@ export function Dashboard({
                   </div>
 
                   <div className={styles.selectsWrapperCompact}>
-                    <div className={`${styles.selectsCompact} ${isTransitioning ? styles.loadingSelects : ''}`}>
+                    <div className={`${styles.selectsCompact} ${isNavigationPending ? styles.loadingSelects : ''}`}>
                       <div className={styles.selectField}>
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pr-1">Org</span>
                         <select 
                           value={selectedOrganizationId ?? ''} 
-                          disabled={isTransitioning}
-                          onChange={(e) => { 
-                            startNavigation(() => router.replace(workspaceSelectorUrl(e.target.value || null)))
+                          disabled={isNavigationPending}
+                          onChange={(e) => {
+                            setIsWorkspaceNavigating(true)
+                            assignDocument(workspaceSelectorUrl(e.target.value || null))
                           }}
                         >
                           {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
@@ -180,16 +184,17 @@ export function Dashboard({
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pr-1">Company</span>
                         <select 
                           value={selectedCompanyId ?? ''} 
-                          disabled={isTransitioning} 
+                          disabled={isNavigationPending}
                           onChange={(e) => {
-                            startNavigation(() => router.replace(overviewUrl({ orgId: selectedOrganizationId, companyId: e.target.value || null, from, to })))
+                            setIsWorkspaceNavigating(true)
+                            assignDocument(overviewUrl({ orgId: selectedOrganizationId, companyId: e.target.value || null, from, to }))
                           }}
                         >
                           {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
                         </select>
                       </div>
                     </div>
-                    {isTransitioning && (
+                    {isNavigationPending && (
                       <div className={styles.selectSpinnerCompact}>
                         <ArrowsClockwise className={styles.spin} size={13} />
                       </div>
@@ -202,7 +207,7 @@ export function Dashboard({
                         <button
                           type="button"
                           className={styles.trialBalanceButton}
-                          disabled={isTransitioning}
+                          disabled={isNavigationPending}
                           onClick={() => {
                             startNavigation(() => router.push(dashboardUrl('/dashboard/trial-balance', { orgId: selectedOrganizationId, companyId: selectedCompanyId, from, to })))
                           }}
@@ -212,7 +217,7 @@ export function Dashboard({
                         <button
                           type="button"
                           className={styles.trialBalanceButton}
-                          disabled={isTransitioning}
+                          disabled={isNavigationPending}
                           onClick={() => {
                             startNavigation(() => router.push(dashboardUrl('/dashboard/reports/tds-report', { orgId: selectedOrganizationId, companyId: selectedCompanyId, from, to })))
                           }}
@@ -222,7 +227,7 @@ export function Dashboard({
                         <button
                           type="button"
                           className={styles.trialBalanceButton}
-                          disabled={isTransitioning}
+                          disabled={isNavigationPending}
                           onClick={() => {
                             startNavigation(() => router.push(dashboardUrl('/dashboard/funds-flow', { orgId: selectedOrganizationId, companyId: selectedCompanyId, from, to })))
                           }}
@@ -232,7 +237,7 @@ export function Dashboard({
                       </>
                     )}
                     <div className={styles.dateControl}>
-                      <button onClick={() => setDateOpen(!dateOpen)} className={styles.dateButton} aria-expanded={dateOpen} disabled={isTransitioning}>
+                      <button onClick={() => setDateOpen(!dateOpen)} className={styles.dateButton} aria-expanded={dateOpen} disabled={isNavigationPending}>
                         Period <span>{from || to ? `${from || 'Start'} — ${to || 'Today'}` : 'All time'}</span>
                         <CaretDown size={14} />
                       </button>
@@ -251,7 +256,7 @@ export function Dashboard({
                         onClick={() => {
                           startNavigation(() => router.replace(overviewUrl({ orgId: selectedOrganizationId, companyId: selectedCompanyId })))
                         }} 
-                        disabled={isTransitioning}
+                        disabled={isNavigationPending}
                         className={styles.resetPeriodButton}
                         title="Reset period to all-time"
                       >
