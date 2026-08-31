@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getCompanyContext, getFundsFlowData, getOrganization } from '@/lib/data'
+import { getCompanyContext, getFundsFlowData, getOrganization, getDetailedFundsFlowReportData } from '@/lib/data'
 import { FundsFlow } from '@/components/funds-flow'
 import { normalizePeriodQuery } from '@/lib/period'
 
@@ -18,8 +18,16 @@ export default async function FundsFlowPage({ searchParams }: { searchParams: Pr
   }
 
   let data = null
+  let detailedData = null
   if (period.isValid) {
-    data = await getFundsFlowData(company.id, period.from || undefined, period.to || undefined)
+    const fromVal = period.from || undefined
+    const toVal = period.to || undefined
+    const [res1, res2] = await Promise.all([
+      getFundsFlowData(company.id, fromVal, toVal),
+      getDetailedFundsFlowReportData(company.id, fromVal, toVal),
+    ])
+    data = res1
+    detailedData = res2
   }
 
   return (
@@ -29,8 +37,9 @@ export default async function FundsFlowPage({ searchParams }: { searchParams: Pr
       companyName={company.name} 
       orgName={organization.name}
       data={data} 
-      from={period.from} 
-      to={period.to} 
+      detailedData={detailedData}
+      from={period.from || ''} 
+      to={period.to || ''} 
     />
   )
 }

@@ -498,23 +498,23 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
   const traceToPrimaryGroup = (groupName: string): { primary: string, path: string[] } => {
     const fullPath: string[] = []
     let current = groupName
-    
+
     const seen = new Set<string>()
     while (current && current.toLowerCase() !== 'unassigned') {
       const currentNorm = current.toLowerCase().trim()
       if (seen.has(currentNorm)) break
       seen.add(currentNorm)
-      
+
       const formatted = formatGroupName(current)
       fullPath.unshift(formatted)
-      
+
       const parent = groupParentMap.get(currentNorm)
       if (!parent || isTopLevelParent(parent)) {
         break
       }
       current = parent
     }
-    
+
     const primary = fullPath[0] || 'Unassigned'
     const path = fullPath.slice(1)
     return { primary, path }
@@ -545,7 +545,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
       }
     }
   }
-  
+
   // Ensure Unassigned exists
   if (!primaryGroupsNodeMap.has('Unassigned')) {
     primaryGroupsNodeMap.set('Unassigned', {
@@ -566,7 +566,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
       currentPrimary = { name: primary, debitTotal: 0, creditTotal: 0, netMovement: 0, closingBalance: 0, subgroups: [], ledgers: [], voucherLines: [] }
       primaryGroupsNodeMap.set(primary, currentPrimary)
     }
-    
+
     let currentNode = currentPrimary
     for (const step of path) {
       let child = currentNode.subgroups.find((s: FundsFlowGroupNode) => s.name === step)
@@ -576,7 +576,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
       }
       currentNode = child
     }
-    
+
     return currentNode
   }
 
@@ -585,7 +585,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
     const subGroupRaw = b.parent_name || 'Unassigned'
     const { primary, path } = traceToPrimaryGroup(subGroupRaw)
     const node = ensureNode(primary, path)
-    
+
     node.ledgers.push({
       ledgerName: b.ledger_name || 'Unknown Ledger',
       closingBalance: asNumber(b.closing_balance),
@@ -598,7 +598,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
     const subGroupRaw = getParentGroup(l.ledger_name, l.ledger_id)
     const { primary, path } = traceToPrimaryGroup(subGroupRaw)
     const node = ensureNode(primary, path)
-    
+
     const entry: FundsFlowEntry = {
       date: l.voucher_date,
       particulars: l.particulars ?? '',
@@ -608,7 +608,7 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
       amount: asNumber(l.debit_amount) - asNumber(l.credit_amount),
       voucherId: l.voucher_id
     }
-    
+
     node.voucherLines.push(entry)
   }
 
@@ -617,17 +617,17 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
     let dTotal = node.voucherLines.reduce((sum: number, item: FundsFlowEntry) => sum + (item.debit ?? 0), 0)
     let cTotal = node.voucherLines.reduce((sum: number, item: FundsFlowEntry) => sum + (item.credit ?? 0), 0)
     let cb = node.ledgers.reduce((sum: number, item: FundsFlowLedger) => sum + item.closingBalance, 0)
-    
+
     node.ledgers.sort((a: FundsFlowLedger, b: FundsFlowLedger) => a.ledgerName.localeCompare(b.ledgerName))
     node.subgroups.sort((a: FundsFlowGroupNode, b: FundsFlowGroupNode) => a.name.localeCompare(b.name))
-    
+
     for (const sub of node.subgroups) {
       rollup(sub)
       dTotal += sub.debitTotal
       cTotal += sub.creditTotal
       cb += sub.closingBalance
     }
-    
+
     node.debitTotal = dTotal
     node.creditTotal = cTotal
     node.closingBalance = cb
@@ -635,13 +635,13 @@ export async function getFundsFlowData(companyId: string, from?: string, to?: st
   }
 
   const groups: FundsFlowGroup[] = []
-  
+
   for (const [primaryName, primaryNode] of primaryGroupsNodeMap.entries()) {
     if (primaryName.toLowerCase() === 'primary' || primaryName.toLowerCase().includes('primary')) {
       continue
     }
     rollup(primaryNode)
-    
+
     groups.push({
       groupName: primaryName,
       debitTotal: primaryNode.debitTotal,
@@ -769,10 +769,10 @@ export async function getPromotersReportData(companyId: string, from?: string, t
   const dbLedgers: any[] = []
   const rawLines: any[] = []
   const chunkSize = 50
-  
+
   for (let i = 0; i < mappedIds.length; i += chunkSize) {
     const chunkIds = mappedIds.slice(i, i + chunkSize)
-    
+
     // Fetch ledgers for chunk
     const ledgersResult = await client
       .from('tb_ledgers')
@@ -780,7 +780,7 @@ export async function getPromotersReportData(companyId: string, from?: string, t
       .eq('company_id', companyId)
       .in('id', chunkIds)
       .eq('is_deleted', false)
-      
+
     if (ledgersResult.error) {
       throw new Error(`Could not load Promoters ledgers: ${ledgersResult.error.message}`)
     }
@@ -790,7 +790,7 @@ export async function getPromotersReportData(companyId: string, from?: string, t
     let page = 0
     const pageSize = 1000
     let hasMore = true
-    
+
     while (hasMore) {
       const linesQuery = client
         .from('tb_ledger_voucher_lines')
@@ -1195,3 +1195,747 @@ export async function getOperatingExpenditureReportData(companyId: string, from?
     entriesByLedger,
   }
 }
+
+export interface CapitalExpenditureLedgerPosition {
+  ledgerId: string
+  ledgerName: string
+  parentName: string
+  openingBalance: number
+  closingBalance: number
+  netMovement: number
+  category: string | null
+}
+
+export interface CapitalExpenditureVoucherEntry {
+  id: string
+  voucherId: string
+  ledgerId: string
+  ledgerName: string
+  date: string
+  type: string
+  number: string | null
+  particulars: string
+  amount: number
+  debit: number
+  credit: number
+}
+
+export interface CapitalExpenditureReportData {
+  companyId: string
+  totalCapex: number
+  openingCapex: number
+  netMovement: number
+  transactionCount: number
+  ledgers: CapitalExpenditureLedgerPosition[]
+  entriesByLedger: Record<string, CapitalExpenditureVoucherEntry[]>
+}
+
+function getCapexBlock(ledgerName: string, parentName?: string): string {
+  const name = ledgerName.toLowerCase()
+  const parent = (parentName || '').toLowerCase()
+
+  if (name.includes('furniture') || parent.includes('furniture')) return 'A'
+  if (name.includes('machinery') || name.includes('plant') || parent.includes('machinery') || parent.includes('plant')) {
+    if (name.includes('land') || name.includes('govt. charges') || name.includes('govt charges')) return 'C'
+    return 'B'
+  }
+  if (name.includes('land') || parent.includes('land')) return 'C'
+  if (name.includes('office') || parent.includes('office')) return 'D'
+  if (name.includes('computer') || name.includes('laptop') || name.includes('software') || parent.includes('computer') || parent.includes('laptop')) return 'E'
+  if (name.includes('building') || name.includes('construction') || parent.includes('building')) return 'F'
+  if (name.includes('electrical') || parent.includes('electrical')) return 'N'
+  return 'OTHER'
+}
+
+export async function getCapitalExpenditureReportData(companyId: string, from?: string, to?: string): Promise<CapitalExpenditureReportData> {
+  const client = createNeonDataApiClient()
+  const activeMapping = await resolveActiveLedgers(companyId, 'CAPEX')
+  const mappedIds = Array.from(activeMapping.activeLedgerIds)
+
+  if (mappedIds.length === 0) {
+    return { companyId, totalCapex: 0, openingCapex: 0, netMovement: 0, transactionCount: 0, ledgers: [], entriesByLedger: {} }
+  }
+
+  // 1. Fetch ledgers and trial balance
+  const [ledgerResult, balanceResult] = await Promise.all([
+    client
+      .from('tb_ledgers')
+      .select('id,name,parent_name,parent_group_id')
+      .eq('company_id', companyId)
+      .eq('is_deleted', false),
+    client.rpc('tb_trial_balance', {
+      target_company: companyId,
+      from_date: from ?? null,
+      to_date: to ?? null,
+    }),
+  ])
+
+  if (ledgerResult.error) {
+    throw new Error(`Could not load Capital Expenditure ledgers: ${ledgerResult.error.message}`)
+  }
+  if (balanceResult.error) {
+    throw new Error(`Could not load Capital Expenditure trial balance: ${balanceResult.error.message}`)
+  }
+
+  const balanceByLedgerId = new Map((balanceResult.data ?? []).map((row: any) => [row.ledger_id, row]))
+  const mappedIdsSet = new Set(mappedIds)
+
+  const ledgers: CapitalExpenditureLedgerPosition[] = (ledgerResult.data ?? [])
+    .filter((l) => mappedIdsSet.has(l.id))
+    .map((ledger): CapitalExpenditureLedgerPosition => {
+      const row = balanceByLedgerId.get(ledger.id)
+      const openingBalance = -Number(row?.opening_balance ?? 0)
+      const closingBalance = -Number(row?.closing_balance ?? 0)
+      const ledgerName = row?.ledger_name ?? ledger.name
+      const parentName = row?.parent_name ?? ledger.parent_name ?? 'Unassigned'
+      return {
+        ledgerId: ledger.id,
+        ledgerName,
+        parentName,
+        openingBalance,
+        closingBalance,
+        netMovement: closingBalance - openingBalance,
+        category: getCapexBlock(ledgerName, parentName),
+      }
+    })
+    .sort((a, b) => a.parentName.localeCompare(b.parentName) || a.ledgerName.localeCompare(b.ledgerName))
+
+  // 2. Fetch voucher lines in chunks to avoid HTTP URI limit issues
+  const rawLines: any[] = []
+  const chunkSize = 50
+  for (let i = 0; i < mappedIds.length; i += chunkSize) {
+    const chunkIds = mappedIds.slice(i, i + chunkSize)
+    let page = 0
+    const pageSize = 1000
+    let hasMore = true
+
+    while (hasMore) {
+      const linesQuery = client
+        .from('tb_ledger_voucher_lines')
+        .select('ledger_id,ledger_name,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,voucher_ledger_entry_id,voucher_id')
+        .eq('company_id', companyId)
+        .in('ledger_id', chunkIds)
+        .order('voucher_date', { ascending: true })
+        .order('voucher_ledger_entry_id', { ascending: true })
+        .range(page * pageSize, (page + 1) * pageSize - 1)
+
+      if (from) linesQuery.gte('voucher_date', from)
+      if (to) linesQuery.lte('voucher_date', to)
+
+      const linesResult = await linesQuery
+      if (linesResult.error) {
+        throw new Error(`Could not load Capital Expenditure voucher lines: ${linesResult.error.message}`)
+      }
+
+      const pageData = linesResult.data ?? []
+      rawLines.push(...pageData)
+
+      if (pageData.length < pageSize) {
+        hasMore = false
+      } else {
+        page++
+      }
+    }
+  }
+
+  const entriesByLedger: Record<string, CapitalExpenditureVoucherEntry[]> = {}
+  for (const line of rawLines) {
+    if (!line.ledger_id) continue
+    const entries = entriesByLedger[line.ledger_id] ?? []
+    const debit = Number(line.debit_amount ?? 0)
+    const credit = Number(line.credit_amount ?? 0)
+    entries.push({
+      id: line.voucher_ledger_entry_id,
+      voucherId: line.voucher_id,
+      ledgerId: line.ledger_id,
+      ledgerName: line.ledger_name ?? 'Unassigned',
+      date: line.voucher_date,
+      type: line.voucher_type,
+      number: line.voucher_number,
+      particulars: line.particulars ?? 'Unassigned',
+      amount: debit - credit,
+      debit,
+      credit,
+    })
+    entriesByLedger[line.ledger_id] = entries
+  }
+
+  const totalCapex = ledgers.reduce((s, l) => s + l.closingBalance, 0)
+  const openingCapex = ledgers.reduce((s, l) => s + l.openingBalance, 0)
+  const netMovement = totalCapex - openingCapex
+
+  return {
+    companyId,
+    totalCapex: Math.round((totalCapex + Number.EPSILON) * 100) / 100,
+    openingCapex: Math.round((openingCapex + Number.EPSILON) * 100) / 100,
+    netMovement: Math.round((netMovement + Number.EPSILON) * 100) / 100,
+    transactionCount: rawLines.length,
+    ledgers,
+    entriesByLedger,
+  }
+}
+
+export interface DetailedFundsFlowItem {
+  key: string
+  name: string
+  refCode: string
+  openingBalance: number
+  closingBalance: number
+  netMovement: number
+  ledgerIds: string[]
+}
+
+export interface DetailedFundsFlowSection {
+  title: string
+  items: DetailedFundsFlowItem[]
+  totalOpening: number
+  totalClosing: number
+  totalMovement: number
+}
+
+export interface DetailedFundsFlowReportData {
+  companyId: string
+  leftColumn: DetailedFundsFlowSection[]
+  rightColumn: DetailedFundsFlowSection[]
+  allVouchersByRefCode: Record<string, CapitalExpenditureVoucherEntry[]>
+}
+
+export async function getDetailedFundsFlowReportData(companyId: string, from?: string, to?: string): Promise<DetailedFundsFlowReportData> {
+  const client = createNeonDataApiClient()
+
+  // 1. Resolve active mappings for all 6 reports
+  const [capexMap, apMap, opexMap, promotersMap, gstMap, tdsMap] = await Promise.all([
+    resolveActiveLedgers(companyId, 'CAPEX'),
+    resolveActiveLedgers(companyId, 'ACCOUNTS_PAYABLE'),
+    resolveActiveLedgers(companyId, 'OPEX'),
+    resolveActiveLedgers(companyId, 'PROMOTERS'),
+    resolveActiveLedgers(companyId, 'GST'),
+    resolveActiveLedgers(companyId, 'TDS'),
+  ])
+
+  const capexIds = Array.from(capexMap.activeLedgerIds)
+  const apIds = Array.from(apMap.activeLedgerIds)
+  const opexIds = Array.from(opexMap.activeLedgerIds)
+  const promoterIds = Array.from(promotersMap.activeLedgerIds)
+  const gstIds = Array.from(gstMap.activeLedgerIds)
+  const tdsIds = Array.from(tdsMap.activeLedgerIds)
+
+  // 2. Fetch all trial balances
+  const [ledgerResult, balanceResult] = await Promise.all([
+    client
+      .from('tb_ledgers')
+      .select('id,name,parent_name,parent_group_id')
+      .eq('company_id', companyId)
+      .eq('is_deleted', false),
+    client.rpc('tb_trial_balance', {
+      target_company: companyId,
+      from_date: from ?? null,
+      to_date: to ?? null,
+    }),
+  ])
+
+  if (ledgerResult.error) throw new Error(`Could not load ledgers: ${ledgerResult.error.message}`)
+  if (balanceResult.error) throw new Error(`Could not load trial balance: ${balanceResult.error.message}`)
+
+  const balanceByLedgerId = new Map((balanceResult.data ?? []).map((row: any) => [row.ledger_id, row]))
+  const allLedgers = ledgerResult.data ?? []
+
+  // Helper to extract balances
+  const getLedgerBalances = (ledgerId: string, invert: boolean = false) => {
+    const row = balanceByLedgerId.get(ledgerId)
+    const sign = invert ? -1 : 1
+    const opening = Number(row?.opening_balance ?? 0) * sign
+    const closing = Number(row?.closing_balance ?? 0) * sign
+    return {
+      opening,
+      closing,
+      movement: closing - opening,
+      name: row?.ledger_name || allLedgers.find((l) => l.id === ledgerId)?.name || 'Unassigned',
+      parentName: row?.parent_name || allLedgers.find((l) => l.id === ledgerId)?.parent_name || 'Unassigned',
+    }
+  }
+
+  // ── 1. TDS COMPLIANCE (Inverted sign, Debit = Receivable T2, Credit = Payable T1) ──
+  let tdsPayableOpening = 0, tdsPayableClosing = 0
+  let tdsReceivableOpening = 0, tdsReceivableClosing = 0
+  const tdsPayableIds: string[] = []
+  const tdsReceivableIds: string[] = []
+
+  for (const id of tdsIds) {
+    const row = balanceByLedgerId.get(id)
+    const opening = Number(row?.opening_balance ?? 0)
+    const closing = Number(row?.closing_balance ?? 0)
+
+    if (closing > 0) { // Credit balance = payable liability
+      tdsPayableOpening += opening
+      tdsPayableClosing += closing
+      tdsPayableIds.push(id)
+    } else { // Debit balance = receivable asset
+      tdsReceivableOpening += -opening
+      tdsReceivableClosing += -closing
+      tdsReceivableIds.push(id)
+    }
+  }
+
+  const tdsItems: DetailedFundsFlowItem[] = []
+  if (tdsIds.length > 0) {
+    tdsItems.push({
+      key: 'tds-payable',
+      name: '-----TDS Payable',
+      refCode: 'T1',
+      openingBalance: tdsPayableOpening,
+      closingBalance: tdsPayableClosing,
+      netMovement: tdsPayableClosing - tdsPayableOpening,
+      ledgerIds: tdsPayableIds,
+    })
+    tdsItems.push({
+      key: 'tds-receivable',
+      name: '-----TDS Receivable',
+      refCode: 'T2',
+      openingBalance: tdsReceivableOpening,
+      closingBalance: tdsReceivableClosing,
+      netMovement: tdsReceivableClosing - tdsReceivableOpening,
+      ledgerIds: tdsReceivableIds,
+    })
+  }
+
+  // ── 2. OPERATING EXPENDITURE (Inverted sign, debit = positive expense) ──
+  let opexSalaryOpening = 0, opexSalaryClosing = 0
+  let opexJammuOpening = 0, opexJammuClosing = 0
+  let opexRajasthanOpening = 0, opexRajasthanClosing = 0
+  let opexCwipOpening = 0, opexCwipClosing = 0
+  let opexOtherOpening = 0, opexOtherClosing = 0
+
+  const opexSalaryIds: string[] = []
+  const opexJammuIds: string[] = []
+  const opexRajasthanIds: string[] = []
+  const opexCwipIds: string[] = []
+  const opexOtherIds: string[] = []
+
+  for (const id of opexIds) {
+    const bal = getLedgerBalances(id, true)
+    const nameLower = bal.name.toLowerCase()
+    const parentLower = bal.parentName.toLowerCase()
+
+    if (nameLower.includes('salary') || nameLower.includes('wages') || nameLower.includes('employee') || parentLower.includes('salary') || parentLower.includes('wages')) {
+      opexSalaryOpening += bal.opening
+      opexSalaryClosing += bal.closing
+      opexSalaryIds.push(id)
+    } else if (nameLower.includes('jammu') || parentLower.includes('jammu')) {
+      opexJammuOpening += bal.opening
+      opexJammuClosing += bal.closing
+      opexJammuIds.push(id)
+    } else if (nameLower.includes('rajasthan') || parentLower.includes('rajasthan')) {
+      if (nameLower.includes('cwip')) {
+        opexCwipOpening += bal.opening
+        opexCwipClosing += bal.closing
+        opexCwipIds.push(id)
+      } else {
+        opexRajasthanOpening += bal.opening
+        opexRajasthanClosing += bal.closing
+        opexRajasthanIds.push(id)
+      }
+    } else if (nameLower.includes('cwip') || parentLower.includes('cwip')) {
+      opexCwipOpening += bal.opening
+      opexCwipClosing += bal.closing
+      opexCwipIds.push(id)
+    } else {
+      opexOtherOpening += bal.opening
+      opexOtherClosing += bal.closing
+      opexOtherIds.push(id)
+    }
+  }
+
+  const opexItems: DetailedFundsFlowItem[] = []
+  if (opexIds.length > 0) {
+    opexItems.push({
+      key: 'opex-salary',
+      name: '-----Salaries & Wages Due',
+      refCode: '-',
+      openingBalance: opexSalaryOpening,
+      closingBalance: opexSalaryClosing,
+      netMovement: opexSalaryClosing - opexSalaryOpening,
+      ledgerIds: opexSalaryIds,
+    })
+    opexItems.push({
+      key: 'opex-jammu',
+      name: '-----Other Expense(Jammu)',
+      refCode: 'I',
+      openingBalance: opexJammuOpening,
+      closingBalance: opexJammuClosing,
+      netMovement: opexJammuClosing - opexJammuOpening,
+      ledgerIds: opexJammuIds,
+    })
+    opexItems.push({
+      key: 'opex-rajasthan',
+      name: '-----Other Expense(Rajasthan)',
+      refCode: 'I1',
+      openingBalance: opexRajasthanOpening,
+      closingBalance: opexRajasthanClosing,
+      netMovement: opexRajasthanClosing - opexRajasthanOpening,
+      ledgerIds: opexRajasthanIds,
+    })
+    opexItems.push({
+      key: 'opex-others',
+      name: '-----Others',
+      refCode: 'J',
+      openingBalance: opexOtherOpening,
+      closingBalance: opexOtherClosing,
+      netMovement: opexOtherClosing - opexOtherOpening,
+      ledgerIds: opexOtherIds,
+    })
+    opexItems.push({
+      key: 'opex-cwip',
+      name: '-----CWIP Expense (Rajasthan)',
+      refCode: '-',
+      openingBalance: opexCwipOpening,
+      closingBalance: opexCwipClosing,
+      netMovement: opexCwipClosing - opexCwipOpening,
+      ledgerIds: opexCwipIds,
+    })
+  }
+
+  // ── 3. ACCOUNTS PAYABLE (Credits = positive liability, Debits = negative/advance) ──
+  let apAdvanceOpening = 0, apAdvanceClosing = 0
+  let apOutstandingOpening = 0, apOutstandingClosing = 0
+  const apAdvanceLedgerIds: string[] = []
+  const apOutstandingLedgerIds: string[] = []
+
+  for (const id of apIds) {
+    const row = balanceByLedgerId.get(id)
+    const opening = Number(row?.opening_balance ?? 0)
+    const closing = Number(row?.closing_balance ?? 0)
+
+    if (closing < 0) {
+      apAdvanceOpening += -opening
+      apAdvanceClosing += -closing
+      apAdvanceLedgerIds.push(id)
+    } else {
+      apOutstandingOpening += opening
+      apOutstandingClosing += closing
+      apOutstandingLedgerIds.push(id)
+    }
+  }
+
+  const apItems: DetailedFundsFlowItem[] = []
+  if (apIds.length > 0) {
+    apItems.push({
+      key: 'ap-advance',
+      name: '-----Advance to Supplier',
+      refCode: 'H',
+      openingBalance: apAdvanceOpening,
+      closingBalance: apAdvanceClosing,
+      netMovement: apAdvanceClosing - apAdvanceOpening,
+      ledgerIds: apAdvanceLedgerIds,
+    })
+    apItems.push({
+      key: 'ap-outstanding',
+      name: '-----Vendor Outstanding',
+      refCode: 'H1',
+      openingBalance: apOutstandingOpening,
+      closingBalance: apOutstandingClosing,
+      netMovement: apOutstandingClosing - apOutstandingOpening,
+      ledgerIds: apOutstandingLedgerIds,
+    })
+  }
+
+  // ── 4. CAPITAL EXPENDITURE (Inverted sign, debit = positive, grouped by parent group) ──
+  const capexGroupMap = new Map<string, {
+    name: string
+    opening: number
+    closing: number
+    movement: number
+    ledgerIds: string[]
+  }>()
+
+  for (const id of capexIds) {
+    const bal = getLedgerBalances(id, true)
+    const parent = bal.parentName || 'Unassigned'
+    const current = capexGroupMap.get(parent) ?? {
+      name: parent,
+      opening: 0,
+      closing: 0,
+      movement: 0,
+      ledgerIds: [] as string[],
+    }
+    current.opening += bal.opening
+    current.closing += bal.closing
+    current.movement += bal.movement
+    current.ledgerIds.push(id)
+    capexGroupMap.set(parent, current)
+  }
+
+  const capexItems: DetailedFundsFlowItem[] = []
+  for (const [parentName, g] of capexGroupMap.entries()) {
+    const ref = getCapexBlock(parentName, parentName)
+    capexItems.push({
+      key: `capex-${parentName}`,
+      name: `-----${parentName}`,
+      refCode: ref === 'OTHER' ? '-' : ref,
+      openingBalance: g.opening,
+      closingBalance: g.closing,
+      netMovement: g.movement,
+      ledgerIds: g.ledgerIds,
+    })
+  }
+
+  // Sort Capital Expenditure groups
+  capexItems.sort((a, b) => {
+    if (a.refCode === '-' && b.refCode !== '-') return 1
+    if (a.refCode !== '-' && b.refCode === '-') return -1
+    return a.refCode.localeCompare(b.refCode) || a.name.localeCompare(b.name)
+  })
+
+  // ── 5. PROMOTERS (Credits = positive liability/equity) ──────────────────
+  const promoterItems: DetailedFundsFlowItem[] = []
+  let shareCapitalOpening = 0, shareCapitalClosing = 0
+  const shareCapitalIds: string[] = []
+
+  for (const id of promoterIds) {
+    const bal = getLedgerBalances(id, false)
+    const nameLower = bal.name.toLowerCase()
+    if (nameLower.includes('share capital') || nameLower.includes('equity') || nameLower.includes('sharecapital')) {
+      shareCapitalOpening += bal.opening
+      shareCapitalClosing += bal.closing
+      shareCapitalIds.push(id)
+    } else {
+      promoterItems.push({
+        key: `promoter-${id}`,
+        name: `-------${bal.name}`,
+        refCode: 'K',
+        openingBalance: bal.opening,
+        closingBalance: bal.closing,
+        netMovement: bal.movement,
+        ledgerIds: [id],
+      })
+    }
+  }
+
+  if (shareCapitalIds.length > 0) {
+    promoterItems.push({
+      key: 'share-capital',
+      name: '-------Share capital Introduced',
+      refCode: '-',
+      openingBalance: shareCapitalOpening,
+      closingBalance: shareCapitalClosing,
+      netMovement: shareCapitalClosing - shareCapitalOpening,
+      ledgerIds: shareCapitalIds,
+    })
+  }
+
+  // ── 6. DUTIES & TAXES GST (Debit = Input G1, Credit = Output G2) ──
+  let gstInputOpening = 0, gstInputClosing = 0
+  let gstOutputOpening = 0, gstOutputClosing = 0
+  const gstInputIds: string[] = []
+  const gstOutputIds: string[] = []
+
+  for (const id of gstIds) {
+    const row = balanceByLedgerId.get(id)
+    const opening = Number(row?.opening_balance ?? 0)
+    const closing = Number(row?.closing_balance ?? 0)
+
+    const isOutput = row?.ledger_name?.toLowerCase().includes('output') || row?.ledger_name?.toLowerCase().includes('cgst @') || row?.ledger_name?.toLowerCase().includes('sgst @') || row?.ledger_name?.toLowerCase().includes('igst @')
+
+    if (!isOutput) { // input credit is debit-natured
+      gstInputOpening += -opening
+      gstInputClosing += -closing
+      gstInputIds.push(id)
+    } else { // output liability is credit-natured
+      gstOutputOpening += opening
+      gstOutputClosing += closing
+      gstOutputIds.push(id)
+    }
+  }
+
+  const gstItems: DetailedFundsFlowItem[] = []
+  if (gstIds.length > 0) {
+    gstItems.push({
+      key: 'gst-input',
+      name: '-----GST Input Tax Credit',
+      refCode: 'G1',
+      openingBalance: gstInputOpening,
+      closingBalance: gstInputClosing,
+      netMovement: gstInputClosing - gstInputOpening,
+      ledgerIds: gstInputIds,
+    })
+    gstItems.push({
+      key: 'gst-output',
+      name: '-----GST Output Liability',
+      refCode: 'G2',
+      openingBalance: gstOutputOpening,
+      closingBalance: gstOutputClosing,
+      netMovement: gstOutputClosing - gstOutputOpening,
+      ledgerIds: gstOutputIds,
+    })
+  }
+
+  // Helper to check if an item has active balances
+  const hasBalance = (item: DetailedFundsFlowItem) => {
+    return Math.abs(item.openingBalance) >= 0.01 || Math.abs(item.closingBalance) >= 0.01 || Math.abs(item.netMovement) >= 0.01
+  }
+
+  // Filter out empty items dynamically
+  const activeCapexItems = capexItems.filter(hasBalance)
+  const activePromoterItems = promoterItems.filter(hasBalance)
+  const activeTdsItems = tdsItems.filter(hasBalance)
+  const activeOpexItems = opexItems.filter(hasBalance)
+  const activeApItems = apItems.filter(hasBalance)
+  const activeGstItems = gstItems.filter(hasBalance)
+
+  // Dynamically assign sequential reference codes (A1, A2, B1, B2 etc.)
+  activeCapexItems.forEach((item, index) => {
+    item.refCode = `A${index + 1}`
+  })
+  activePromoterItems.forEach((item, index) => {
+    item.refCode = `B${index + 1}`
+  })
+  activeTdsItems.forEach((item, index) => {
+    item.refCode = `C${index + 1}`
+  })
+  activeOpexItems.forEach((item, index) => {
+    item.refCode = `D${index + 1}`
+  })
+  activeApItems.forEach((item, index) => {
+    item.refCode = `E${index + 1}`
+  })
+  activeGstItems.forEach((item, index) => {
+    item.refCode = `F${index + 1}`
+  })
+
+  // Assemble Left and Right Columns
+  const leftColumn: DetailedFundsFlowSection[] = [
+    {
+      title: 'Capital Expenditure',
+      items: activeCapexItems,
+      totalOpening: activeCapexItems.reduce((s, i) => s + i.openingBalance, 0),
+      totalClosing: activeCapexItems.reduce((s, i) => s + i.closingBalance, 0),
+      totalMovement: activeCapexItems.reduce((s, i) => s + i.netMovement, 0),
+    },
+    {
+      title: 'Promoters Report',
+      items: activePromoterItems,
+      totalOpening: activePromoterItems.reduce((s, i) => s + i.openingBalance, 0),
+      totalClosing: activePromoterItems.reduce((s, i) => s + i.closingBalance, 0),
+      totalMovement: activePromoterItems.reduce((s, i) => s + i.netMovement, 0),
+    },
+  ]
+
+  const rightColumn: DetailedFundsFlowSection[] = [
+    {
+      title: 'TDS Compliance Report',
+      items: activeTdsItems,
+      totalOpening: activeTdsItems.reduce((s, i) => s + i.openingBalance, 0),
+      totalClosing: activeTdsItems.reduce((s, i) => s + i.closingBalance, 0),
+      totalMovement: activeTdsItems.reduce((s, i) => s + i.netMovement, 0),
+    },
+    {
+      title: 'Operating Expenditure',
+      items: activeOpexItems,
+      totalOpening: activeOpexItems.reduce((s, i) => s + i.openingBalance, 0),
+      totalClosing: activeOpexItems.reduce((s, i) => s + i.closingBalance, 0),
+      totalMovement: activeOpexItems.reduce((s, i) => s + i.netMovement, 0),
+    },
+    {
+      title: 'Accounts Payable',
+      items: activeApItems,
+      totalOpening: activeApItems.reduce((s, i) => s + i.openingBalance, 0),
+      totalClosing: activeApItems.reduce((s, i) => s + i.closingBalance, 0),
+      totalMovement: activeApItems.reduce((s, i) => s + i.netMovement, 0),
+    },
+    {
+      title: 'Duties & Taxes GST',
+      items: activeGstItems,
+      totalOpening: activeGstItems.reduce((s, i) => s + i.openingBalance, 0),
+      totalClosing: activeGstItems.reduce((s, i) => s + i.closingBalance, 0),
+      totalMovement: activeGstItems.reduce((s, i) => s + i.netMovement, 0),
+    },
+  ]
+
+  // 3. Fetch transaction vouchers for all mapped ledgers and categorize by Ref Code
+  const allLedgerIds = [
+    ...capexIds,
+    ...apIds,
+    ...opexIds,
+    ...promoterIds,
+    ...gstIds,
+    ...tdsIds,
+  ]
+
+  const rawLines: any[] = []
+  if (allLedgerIds.length > 0) {
+    const chunkSize = 50
+    for (let i = 0; i < allLedgerIds.length; i += chunkSize) {
+      const chunkIds = allLedgerIds.slice(i, i + chunkSize)
+      let page = 0
+      const pageSize = 1000
+      let hasMore = true
+
+      while (hasMore) {
+        const linesQuery = client
+          .from('tb_ledger_voucher_lines')
+          .select('ledger_id,ledger_name,voucher_date,voucher_type,voucher_number,particulars,debit_amount,credit_amount,voucher_ledger_entry_id,voucher_id')
+          .eq('company_id', companyId)
+          .in('ledger_id', chunkIds)
+          .order('voucher_date', { ascending: true })
+          .order('voucher_ledger_entry_id', { ascending: true })
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+
+        if (from) linesQuery.gte('voucher_date', from)
+        if (to) linesQuery.lte('voucher_date', to)
+
+        const linesResult = await linesQuery
+        if (linesResult.error) throw new Error(`Could not load voucher lines: ${linesResult.error.message}`)
+
+        const pageData = linesResult.data ?? []
+        rawLines.push(...pageData)
+
+        if (pageData.length < pageSize) hasMore = false
+        else page++
+      }
+    }
+  }
+
+  // Helper map from ledgerId to Ref Code
+  const ledgerIdToRefCode = new Map<string, string>()
+  const setRef = (id: string, ref: string) => {
+    if (ref !== '-') ledgerIdToRefCode.set(id, ref)
+  }
+
+  for (const item of [...activeCapexItems, ...activeApItems, ...activeOpexItems, ...activePromoterItems, ...activeGstItems, ...activeTdsItems]) {
+    for (const lid of item.ledgerIds) {
+      setRef(lid, item.refCode)
+    }
+  }
+
+  const allVouchersByRefCode: Record<string, CapitalExpenditureVoucherEntry[]> = {}
+  for (const line of rawLines) {
+    if (!line.ledger_id) continue
+    const ref = ledgerIdToRefCode.get(line.ledger_id) || '-'
+    const entries = allVouchersByRefCode[ref] ?? []
+    const debit = Number(line.debit_amount ?? 0)
+    const credit = Number(line.credit_amount ?? 0)
+
+    entries.push({
+      id: line.voucher_ledger_entry_id,
+      voucherId: line.voucher_id,
+      ledgerId: line.ledger_id,
+      ledgerName: line.ledger_name ?? 'Unassigned',
+      date: line.voucher_date,
+      type: line.voucher_type,
+      number: line.voucher_number,
+      particulars: line.particulars ?? 'Unassigned',
+      amount: debit - credit,
+      debit,
+      credit,
+    })
+    allVouchersByRefCode[ref] = entries
+  }
+
+  return {
+    companyId,
+    leftColumn,
+    rightColumn,
+    allVouchersByRefCode,
+  }
+}
+

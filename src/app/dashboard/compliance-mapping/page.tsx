@@ -57,6 +57,17 @@ const OPEX_CONFIG: ComplianceMappingConfig = {
   defaultCategory: 'OTHER',
 }
 
+const CAPEX_CONFIG: ComplianceMappingConfig = {
+  complianceType: 'CAPEX',
+  title: 'Capital Expenditure ledger mapping',
+  description: 'Identify the groups and ledgers representing Capital Expenditure (CapEx) like fixed assets, machinery, building, furniture, etc.',
+  autoSuggestGroup: (name: string) => {
+    const normalized = name.toLowerCase()
+    return normalized.includes('fixed asset') || normalized.includes('capital') || normalized.includes('machinery') || normalized.includes('furniture') || normalized.includes('asset')
+  },
+  defaultCategory: 'OTHER',
+}
+
 export default async function TdsComplianceMappingPage({
   searchParams,
 }: {
@@ -83,6 +94,7 @@ const ACCOUNTS_PAYABLE_CONFIG: ComplianceMappingConfig = {
   else if (type === 'LOANS') config = LOANS_CONFIG
   else if (type === 'ACCOUNTS_PAYABLE') config = ACCOUNTS_PAYABLE_CONFIG
   else if (type === 'OPEX') config = OPEX_CONFIG
+  else if (type === 'CAPEX') config = CAPEX_CONFIG
 
   const data = await getCentralizedMappingData(params.org, params.company, config)
   

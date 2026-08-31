@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Menu, X, User, ChevronDown, Database, BarChart3, PieChart, Globe, MessageSquare, Upload, Sun, Moon, ShieldCheck, CreditCard } from 'lucide-react'
+import { Menu, X, User, ChevronDown, Database, BarChart3, PieChart, Globe, MessageSquare, Upload, Sun, Moon, ShieldCheck, CreditCard, TrendingUp } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { authClient } from '@/lib/auth/client'
 import { useThemeMode } from '@/app/providers'
@@ -17,7 +17,7 @@ const HeaderInner = () => {
   const { data: session } = authClient.useSession()
   const user = session?.user ?? null
   const { mode, toggleMode } = useThemeMode()
-  
+
   const searchParams = useSearchParams()
   const withParams = (path: string) => `${path === '/dashboard' ? '/dashboard/overview' : path}?${searchParams.toString()}`
 
@@ -215,6 +215,17 @@ const HeaderInner = () => {
                             <div>
                               <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Accounts Payable</h3>
                               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Supplier &amp; vendor payables audit</p>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link href={withParams('/dashboard/reports/capital-expenditure')} className="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border dark:border-gray-700">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center">
+                              <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Capital Expenditure</h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Fixed assets &amp; capital expenses audit</p>
                             </div>
                           </div>
                         </Link>

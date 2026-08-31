@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useTransition, useEffect, type FormEvent } from 'react'
+import { useState, useTransition, useEffect, useMemo, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowUpRight, ArrowsClockwise, CaretDown, Download, Scales, SpinnerGap, X } from '@phosphor-icons/react'
+import { ArrowLeft, ArrowUpRight, ArrowsClockwise, CaretDown, Download, Scales, SpinnerGap, Table, X } from '@phosphor-icons/react'
 import type { Company, FundsFlowData, FundsFlowGroupNode, Organization, FundsFlowEntry } from '@/lib/types'
+import type { DetailedFundsFlowReportData } from '@/lib/data'
 import Header from '@/components/ui/Header'
 import Footer from '@/components/ui/Footer'
 import { dashboardUrl } from '@/lib/dashboard-navigation'
@@ -49,6 +50,7 @@ export function FundsFlow({
   companyName,
   orgName,
   data,
+  detailedData,
   from,
   to
 }: {
@@ -57,6 +59,7 @@ export function FundsFlow({
   companyName: string
   orgName: string
   data: FundsFlowData | null
+  detailedData: DetailedFundsFlowReportData | null
   from: string
   to: string
 }) {
@@ -70,6 +73,58 @@ export function FundsFlow({
   const [selectedVoucherId, setSelectedVoucherId] = useState<string | null>(null)
   const [voucherDetail, setVoucherDetail] = useState<any>(null)
   const [voucherError, setVoucherError] = useState('')
+
+  const [showDetailedCompliance, setShowDetailedCompliance] = useState<boolean>(false)
+  const [detailedActiveTab, setDetailedActiveTab] = useState<string>('report')
+  const [detailedSubTabs, setDetailedSubTabs] = useState<Record<string, string>>({
+    capex: 'A1',
+    promoters: 'B1',
+    tds: 'C1',
+    opex: 'D1',
+    ap: 'E1',
+    gst: 'F1',
+  })
+
+  const REPORT_TABS = useMemo(() => {
+    if (!detailedData) {
+      return [
+      { id: 'report', label: 'Report Sheet' },
+        { id: 'capex', label: 'Capital Expenditure', refCodes: [] as string[] },
+        { id: 'promoters', label: 'Promoters Report', refCodes: [] as string[] },
+        { id: 'tds', label: 'TDS Compliance', refCodes: [] as string[] },
+        { id: 'opex', label: 'Operating Expenditure', refCodes: [] as string[] },
+        { id: 'ap', label: 'Accounts Payable', refCodes: [] as string[] },
+        { id: 'gst', label: 'Duties & Taxes GST', refCodes: [] as string[] },
+      ]
+    }
+
+    const getRefCodes = (title: string) => {
+      const col = [...detailedData.leftColumn, ...detailedData.rightColumn].find(c => c.title === title)
+      return col?.items.map(i => i.refCode) ?? []
+    }
+
+    return [
+      { id: 'report', label: 'Report Sheet' },
+      { id: 'capex', label: 'Capital Expenditure', refCodes: getRefCodes('Capital Expenditure') },
+      { id: 'promoters', label: 'Promoters Report', refCodes: getRefCodes('Promoters Report') },
+      { id: 'tds', label: 'TDS Compliance', refCodes: getRefCodes('TDS Compliance Report') },
+      { id: 'opex', label: 'Operating Expenditure', refCodes: getRefCodes('Operating Expenditure') },
+      { id: 'ap', label: 'Accounts Payable', refCodes: getRefCodes('Accounts Payable') },
+      { id: 'gst', label: 'Duties & Taxes GST', refCodes: getRefCodes('Duties & Taxes GST') },
+    ]
+  }, [detailedData])
+
+  const detailedAvailableRefs = useMemo(() => {
+    if (!detailedData) return []
+    const allItems = [
+      ...detailedData.leftColumn.flatMap(c => c.items),
+      ...detailedData.rightColumn.flatMap(c => c.items)
+    ]
+    return allItems.map(item => ({
+      code: item.refCode,
+      name: item.name.replace(/^-----/, '')
+    }))
+  }, [detailedData])
 
   useEffect(() => {
     setSelectedPath([])
@@ -436,6 +491,598 @@ export function FundsFlow({
     XLSX.writeFile(wb, fileName)
   }
 
+  const exportDetailedToExcel = () => {
+    if (!detailedData) return
+
+    const wb = XLSX.utils.book_new()
+
+    // ─── 1st Sheet: Report Sheet ───
+    const leftRows: any[] = []
+    detailedData.leftColumn.forEach((section) => {
+      leftRows.push([section.title, 'Ref', 'Balance (INR)'])
+      section.items
+        .filter((item) => {
+          return Math.abs(item.openingBalance) >= 0.01 || Math.abs(item.closingBalance) >= 0.01 || Math.abs(item.netMovement) >= 0.01
+        })
+        .forEach((item) => {
+          leftRows.push([item.name.replace(/^-----/, '  '), item.refCode, item.closingBalance])
+        })
+      leftRows.push([`Total ${section.title}`, '', section.totalClosing])
+      leftRows.push([])
+    })
+
+    const rightRows: any[] = []
+    detailedData.rightColumn.forEach((section) => {
+      rightRows.push([section.title, 'Ref', 'Balance (INR)'])
+      section.items
+        .filter((item) => {
+          return Math.abs(item.openingBalance) >= 0.01 || Math.abs(item.closingBalance) >= 0.01 || Math.abs(item.netMovement) >= 0.01
+        })
+        .forEach((item) => {
+          rightRows.push([item.name.replace(/^-----/, '  '), item.refCode, item.closingBalance])
+        })
+      rightRows.push([`Total ${section.title}`, '', section.totalClosing])
+      rightRows.push([])
+    })
+
+    const maxRows = Math.max(leftRows.length, rightRows.length)
+    const mergedRows: any[] = []
+    mergedRows.push([`${companyName} - Detailed Compliance Statement`, '', '', '', `Period: Upto ${to || 'today'}`])
+    mergedRows.push([])
+
+    for (let r = 0; r < maxRows; r++) {
+      const left = leftRows[r] || ['', '', '']
+      const right = rightRows[r] || ['', '', '']
+      mergedRows.push([
+        left[0], left[1], left[2],
+        '', // Spacing
+        right[0], right[1], right[2]
+      ])
+    }
+
+    const wsReport = XLSX.utils.aoa_to_sheet(mergedRows)
+    wsReport['!cols'] = [
+      { wch: 38 }, // Left Particulars
+      { wch: 8 },  // Left Ref
+      { wch: 18 }, // Left Balance
+      { wch: 4 },  // Spacing
+      { wch: 38 }, // Right Particulars
+      { wch: 8 },  // Right Ref
+      { wch: 18 }, // Right Balance
+    ]
+
+    // Style the Report sheet
+    mergedRows.forEach((row, rowIndex) => {
+      for (let colIndex = 0; colIndex < 7; colIndex++) {
+        const colLetter = String.fromCharCode(65 + colIndex)
+        const cellRef = `${colLetter}${rowIndex + 1}`
+        const cell = wsReport[cellRef]
+        if (!cell) continue
+
+        cell.s = {
+          font: { name: 'Segoe UI', sz: 10, color: { rgb: '333333' } },
+          alignment: {
+            horizontal: colIndex === 1 || colIndex === 5 ? 'center' : (colIndex === 2 || colIndex === 6 ? 'right' : 'left'),
+            vertical: 'center'
+          }
+        }
+
+        if (typeof cell.v === 'number') {
+          cell.z = '₹#,##0.00'
+        }
+
+        if (rowIndex === 0) {
+          cell.s.font = { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: '14532D' } }
+          continue
+        }
+        if (rowIndex === 1) continue
+
+        const val = String(row[colIndex] || '')
+
+        const isHeader = val === 'Capital Expenditure' || val === 'Promoters Report' || val === 'TDS Compliance Report' || val === 'Operating Expenditure' || val === 'Accounts Payable' || val === 'Duties & Taxes GST'
+        if (isHeader) {
+          cell.s.fill = { fgColor: { rgb: 'DCFCE7' } }
+          cell.s.font = { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: '14532D' } }
+          cell.s.border = {
+            bottom: { style: 'medium', color: { rgb: '86EFAC' } }
+          }
+        }
+
+        if (val.startsWith('Total ')) {
+          cell.s.font = { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: '1E3A8A' } }
+          cell.s.border = {
+            top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+            bottom: { style: 'double', color: { rgb: '1E3A8A' } }
+          }
+        }
+      }
+    })
+
+    XLSX.utils.book_append_sheet(wb, wsReport, 'Report Sheet')
+
+    // ─── 2nd+ Sheets: Reference Sheets ───
+    const allItems = [
+      ...detailedData.leftColumn.flatMap(c => c.items),
+      ...detailedData.rightColumn.flatMap(c => c.items)
+    ]
+
+    allItems.forEach((item) => {
+      const code = item.refCode
+      const vouchers = detailedData.allVouchersByRefCode[code] ?? []
+      if (vouchers.length === 0) return
+
+      // Group vouchers by ledger name
+      const grouped: Record<string, typeof vouchers> = {}
+      vouchers.forEach((v) => {
+        const name = v.ledgerName || 'Unassigned'
+        if (!grouped[name]) grouped[name] = []
+        grouped[name].push(v)
+      })
+
+      const refRows: any[] = []
+      refRows.push([`${item.name.replace(/^-----/, '')} Details (Ref ${code})`])
+      refRows.push([])
+
+      const ledgerNames = Object.keys(grouped).sort()
+      
+      const ledgerHeadings: number[] = []
+      const tableHeaders: number[] = []
+      const totalRows: number[] = []
+
+      ledgerNames.forEach((ledgerName) => {
+        const ledgerVouchers = grouped[ledgerName]
+        
+        ledgerHeadings.push(refRows.length)
+        refRows.push([ledgerName])
+
+        tableHeaders.push(refRows.length)
+        refRows.push(['Date', 'Particulars', 'Nature', 'Debit', 'Credit', 'Amount'])
+
+        let totalDebit = 0
+        let totalCredit = 0
+
+        ledgerVouchers.forEach((v) => {
+          totalDebit += v.debit
+          totalCredit += v.credit
+          refRows.push([
+            v.date ? displayDate(v.date) : '',
+            v.particulars,
+            ledgerName,
+            v.debit > 0 ? v.debit : '',
+            v.credit > 0 ? v.credit : '',
+            v.debit - v.credit
+          ])
+        })
+
+        totalRows.push(refRows.length)
+        refRows.push(['Total', '', '', totalDebit, totalCredit, totalDebit - totalCredit])
+        refRows.push([])
+      })
+
+      const wsRef = XLSX.utils.aoa_to_sheet(refRows)
+      wsRef['!cols'] = [
+        { wch: 14 }, // Date
+        { wch: 40 }, // Particulars
+        { wch: 30 }, // Nature
+        { wch: 18 }, // Debit
+        { wch: 18 }, // Credit
+        { wch: 18 }, // Amount
+      ]
+
+      refRows.forEach((row, rowIndex) => {
+        const isHeading = ledgerHeadings.includes(rowIndex)
+        const isHeader = tableHeaders.includes(rowIndex)
+        const isTotal = totalRows.includes(rowIndex)
+
+        for (let colIndex = 0; colIndex < 6; colIndex++) {
+          const colLetter = String.fromCharCode(65 + colIndex)
+          const cellRef = `${colLetter}${rowIndex + 1}`
+          const cell = wsRef[cellRef]
+          if (!cell) continue
+
+          cell.s = {
+            font: { name: 'Segoe UI', sz: 10, color: { rgb: '333333' } },
+            alignment: {
+              horizontal: colIndex === 0 ? 'center' : (colIndex >= 3 ? 'right' : 'left'),
+              vertical: 'center'
+            }
+          }
+
+          if (typeof cell.v === 'number') {
+            cell.z = '₹#,##0.00'
+          }
+
+          if (rowIndex === 0) {
+            cell.s.font = { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: '1E293B' } }
+            continue
+          }
+
+          if (isHeading) {
+            cell.s.font = { name: 'Segoe UI', sz: 12, bold: true, color: { rgb: '0F172A' } }
+            continue
+          }
+
+          if (isHeader) {
+            cell.s.fill = { fgColor: { rgb: '1E293B' } }
+            cell.s.font = { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: 'FFFFFF' } }
+            cell.s.alignment.horizontal = colIndex >= 3 ? 'right' : 'left'
+            continue
+          }
+
+          if (isTotal) {
+            cell.s.font = { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: '000000' } }
+            cell.s.border = {
+              top: { style: 'thin', color: { rgb: '64748B' } },
+              bottom: { style: 'double', color: { rgb: '000000' } }
+            }
+          }
+        }
+      })
+
+      const sheetName = code.substring(0, 31)
+      XLSX.utils.book_append_sheet(wb, wsRef, sheetName)
+    })
+
+    const cleanToDate = (to || 'latest').replace(/[\/\\?%*:|"<>\s]/g, '_')
+    const cleanCompanyName = companyName.replace(/[\/\\?%*:|"<>\s]/g, '_')
+    const fileName = `${cleanCompanyName}_Detailed_Compliance_Report_${cleanToDate}.xlsx`
+
+    XLSX.writeFile(wb, fileName)
+  }
+
+  if (showDetailedCompliance && detailedData) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col justify-between font-inter">
+        <Header />
+        <main className="flex-grow">
+          <div className={styles.shell}>
+            <header className={`${styles.header} mb-6 flex justify-between items-end`}>
+              <div>
+                <span className={styles.eyebrow}>Detailed Compliance Statement</span>
+                <h1>Detailed Funds Flow Statement</h1>
+                <p>{companyName} · {orgName} · Upto {to || 'today'}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className={styles.exportButton}
+                  style={{ backgroundColor: '#1e293b', color: '#fff', borderColor: '#0f172a' }}
+                  onClick={exportDetailedToExcel}
+                  disabled={!detailedData}
+                >
+                  <Download size={16} /> Export Detailed Excel
+                </button>
+                <button
+                  className={styles.exportButton}
+                  onClick={() => setShowDetailedCompliance(false)}
+                >
+                  <ArrowLeft size={16} /> Back to Summary
+                </button>
+              </div>
+            </header>
+            
+            {/* Sheet Tabs */}
+            <div className="flex items-center gap-1 border-b border-slate-200 mb-6 flex-wrap">
+              {REPORT_TABS.map((tab) => {
+                const isActive = detailedActiveTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setDetailedActiveTab(tab.id)}
+                    className="flex items-center gap-1.5"
+                    style={{
+                      padding: '8px 16px',
+                      background: isActive ? '#fff' : 'transparent',
+                      border: isActive ? '1px solid #e2e8f0' : '1px solid transparent',
+                      borderBottom: isActive ? '2.5px solid #16a34a' : '1.5px solid transparent',
+                      borderRadius: '6px 6px 0 0',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: isActive ? '#16a34a' : '#64748b',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {tab.id === 'report' && <Table size={14} />}
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Sheet 1: Report Sheet (Excel side-by-side) */}
+            {detailedActiveTab === 'report' && (
+              <div className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: '30px', minWidth: '960px' }}>
+                  
+                  {/* Left Column */}
+                  <div className="flex flex-col gap-6">
+                    {detailedData.leftColumn.map((section) => (
+                      <div key={section.title} className="border border-slate-200 rounded-lg overflow-hidden">
+                        <table className="w-full border-collapse text-xs">
+                          <thead>
+                            <tr style={{ background: '#dcfce7', borderBottom: '2.5px solid #86efac' }}>
+                              <th className="p-2.5 text-left font-extrabold text-slate-800" style={{ fontSize: 13 }}>
+                                {section.title}
+                              </th>
+                              <th className="p-2.5 text-center font-extrabold text-slate-800" style={{ width: 80 }}>
+                                Ref
+                              </th>
+                              <th className="p-2.5 text-right font-extrabold text-slate-800" style={{ width: 140 }}>
+                                Balance (INR)
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {section.items
+                              .filter((item) => {
+                                return Math.abs(item.openingBalance) >= 0.01 || Math.abs(item.closingBalance) >= 0.01 || Math.abs(item.netMovement) >= 0.01
+                              })
+                              .map((item) => (
+                                <tr key={item.key} className="border-b border-slate-200 hover:bg-slate-50">
+                                  <td className="py-2 pr-2 pl-6 font-semibold text-slate-800">
+                                    {item.name.replace(/^-----+/, '')}
+                                  </td>
+                                  <td className="p-2 text-center">
+                                    {item.refCode === '-' ? (
+                                      <span className="text-slate-400">—</span>
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          const reportTab = REPORT_TABS.find(t => t.refCodes?.includes(item.refCode))
+                                          if (reportTab) {
+                                            setDetailedActiveTab(reportTab.id)
+                                            setDetailedSubTabs(prev => ({ ...prev, [reportTab.id]: item.refCode }))
+                                          }
+                                        }}
+                                        className="bg-blue-50 border border-blue-200 text-blue-700 font-bold rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-blue-100 transition-colors"
+                                      >
+                                        {item.refCode}
+                                      </button>
+                                    )}
+                                  </td>
+                                <td className="p-2 text-right font-bold text-slate-900">
+                                  {formatVal(item.closingBalance)}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="bg-slate-50 border-t-2 border-slate-300 font-extrabold">
+                              <td className="p-2.5">Total {section.title}</td>
+                              <td></td>
+                              <td className="p-2.5 text-right text-blue-800">
+                                {formatVal(section.totalClosing)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="flex flex-col gap-6">
+                    {detailedData.rightColumn.map((section) => (
+                      <div key={section.title} className="border border-slate-200 rounded-lg overflow-hidden">
+                        <table className="w-full border-collapse text-xs">
+                          <thead>
+                            <tr style={{ background: '#dcfce7', borderBottom: '2.5px solid #86efac' }}>
+                              <th className="p-2.5 text-left font-extrabold text-slate-800" style={{ fontSize: 13 }}>
+                                {section.title}
+                              </th>
+                              <th className="p-2.5 text-center font-extrabold text-slate-800" style={{ width: 80 }}>
+                                Ref
+                              </th>
+                              <th className="p-2.5 text-right font-extrabold text-slate-800" style={{ width: 140 }}>
+                                Balance (INR)
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {section.items
+                              .filter((item) => {
+                                return Math.abs(item.openingBalance) >= 0.01 || Math.abs(item.closingBalance) >= 0.01 || Math.abs(item.netMovement) >= 0.01
+                              })
+                              .map((item) => (
+                                <tr key={item.key} className="border-b border-slate-200 hover:bg-slate-50">
+                                  <td className="py-2 pr-2 pl-6 font-semibold text-slate-800">
+                                    {item.name.replace(/^-----+/, '')}
+                                  </td>
+                                  <td className="p-2 text-center">
+                                    {item.refCode === '-' ? (
+                                      <span className="text-slate-400">—</span>
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          const reportTab = REPORT_TABS.find(t => t.refCodes?.includes(item.refCode))
+                                          if (reportTab) {
+                                            setDetailedActiveTab(reportTab.id)
+                                            setDetailedSubTabs(prev => ({ ...prev, [reportTab.id]: item.refCode }))
+                                          }
+                                        }}
+                                        className="bg-blue-50 border border-blue-200 text-blue-700 font-bold rounded px-2 py-0.5 text-[10px] cursor-pointer hover:bg-blue-100 transition-colors"
+                                      >
+                                        {item.refCode}
+                                      </button>
+                                    )}
+                                  </td>
+                                <td className="p-2 text-right font-bold text-slate-900">
+                                  {formatVal(item.closingBalance)}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="bg-slate-50 border-t-2 border-slate-300 font-extrabold">
+                              <td className="p-2.5">Total {section.title}</td>
+                              <td></td>
+                              <td className="p-2.5 text-right text-blue-800">
+                                {formatVal(section.totalClosing)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    ))}
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* Sheet 2: Reference Detail Sheet (Grouped by report page, sub-sheet by reference code) */}
+            {detailedActiveTab !== 'report' && (() => {
+              const currentReport = REPORT_TABS.find(t => t.id === detailedActiveTab)
+              const availableCodes = currentReport?.refCodes ?? []
+
+              // Filter codes that actually have mapped ledgers/vouchers or non-zero balance to avoid empty sub-sheets!
+              const activeCodes = availableCodes.filter((code) => {
+                const vouchers = detailedData.allVouchersByRefCode[code] ?? []
+                if (vouchers.length > 0) return true
+
+                const items = [...detailedData.leftColumn, ...detailedData.rightColumn].flatMap(s => s.items)
+                const matchedItem = items.find(i => i.refCode === code)
+                if (matchedItem && (Math.abs(matchedItem.openingBalance) >= 0.01 || Math.abs(matchedItem.closingBalance) >= 0.01)) return true
+
+                return false
+              })
+
+              const activeSubTab = detailedSubTabs[detailedActiveTab] || activeCodes[0] || availableCodes[0]
+              const activeRefObj = detailedAvailableRefs.find(r => r.code === activeSubTab)
+              const activeRefName = activeRefObj ? activeRefObj.name : 'Unknown'
+              const vouchers = detailedData.allVouchersByRefCode[activeSubTab] ?? []
+
+              // Group vouchers by ledger name
+              const groupedByLedger: Record<string, typeof vouchers> = {}
+              vouchers.forEach((entry) => {
+                const name = entry.ledgerName || 'Unassigned'
+                if (!groupedByLedger[name]) {
+                  groupedByLedger[name] = []
+                }
+                groupedByLedger[name].push(entry)
+              })
+
+              const ledgerNames = Object.keys(groupedByLedger).sort()
+
+              return (
+                <div className="p-6 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col gap-8">
+                  {/* Sub-tabs ribbon (like sub-sheets inside Excel) */}
+                  <div className="flex items-center gap-2 mb-2 border-b border-slate-200 pb-2 flex-wrap">
+                    <span className="text-xs font-extrabold text-slate-400 mr-2 uppercase tracking-wider">Sub-Sheets:</span>
+                    {activeCodes.length === 0 ? (
+                      <span className="text-xs text-slate-400 italic">No active reference codes</span>
+                    ) : (
+                      activeCodes.map((code) => {
+                        const isActive = activeSubTab === code
+                        const refObj = detailedAvailableRefs.find(r => r.code === code)
+                        return (
+                          <button
+                            key={code}
+                            onClick={() => setDetailedSubTabs(prev => ({ ...prev, [detailedActiveTab]: code }))}
+                            style={{
+                              padding: '6px 14px',
+                              background: isActive ? '#dcfce7' : 'transparent',
+                              border: isActive ? '1px solid #86efac' : '1px solid transparent',
+                              borderRadius: '6px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: isActive ? '#14532d' : '#64748b',
+                              cursor: 'pointer',
+                            }}
+                            title={refObj?.name}
+                          >
+                            {code}
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center mb-2 flex-wrap gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-950">
+                        Reference Evidence: {activeSubTab} — {activeRefName}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Showing detailed Tally ledger voucher logs supporting Ref {activeSubTab} — {activeRefName}
+                      </p>
+                    </div>
+                  </div>
+
+                  {ledgerNames.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 italic border border-dashed rounded-lg">
+                      No vouchers found for Reference Code {activeSubTab}.
+                    </div>
+                  ) : (
+                    ledgerNames.map((ledgerName) => {
+                      const ledgerVouchers = groupedByLedger[ledgerName]
+                      const totalDebit = ledgerVouchers.reduce((sum, e) => sum + e.debit, 0)
+                      const totalCredit = ledgerVouchers.reduce((sum, e) => sum + e.credit, 0)
+                      const totalNet = totalDebit - totalCredit
+
+                      return (
+                        <div key={ledgerName} className="flex flex-col gap-3">
+                          {/* Ledger Heading */}
+                          <h4 className="text-sm font-bold text-slate-900 border-l-4 border-slate-700 pl-2 uppercase tracking-wide">
+                            {ledgerName}
+                          </h4>
+
+                          {/* Dedicated Table */}
+                          <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                            <table className="w-full border-collapse text-xs text-left">
+                              <thead>
+                                <tr className="bg-slate-800 border-b border-slate-900 text-slate-100 font-bold uppercase tracking-wider">
+                                  <th className="p-3 w-32">Date</th>
+                                  <th className="p-3">Particulars</th>
+                                  <th className="p-3 w-48">Nature</th>
+                                  <th className="p-3 text-right w-36">Debit (+)</th>
+                                  <th className="p-3 text-right w-36">Credit (-)</th>
+                                  <th className="p-3 text-right w-40">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ledgerVouchers.map((entry) => {
+                                  const net = entry.debit - entry.credit
+                                  return (
+                                    <tr key={entry.id} className="border-b border-slate-200 hover:bg-slate-50">
+                                      <td className="p-3 text-slate-500 font-semibold">{displayDate(entry.date)}</td>
+                                      <td className="p-3">
+                                        <div className="font-semibold text-slate-800">{entry.particulars}</div>
+                                        {entry.number && (
+                                          <div className="text-[10px] text-slate-400">{entry.type} #{entry.number}</div>
+                                        )}
+                                      </td>
+                                      <td className="p-3 text-slate-600 font-medium">{ledgerName}</td>
+                                      <td className="p-3 text-right font-medium text-slate-800">{entry.debit > 0 ? formatVal(entry.debit) : '—'}</td>
+                                      <td className="p-3 text-right font-medium text-slate-800">{entry.credit > 0 ? formatVal(entry.credit) : '—'}</td>
+                                      <td className={`p-3 text-right font-bold ${net >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                                        {net >= 0 ? '+' : ''}{money.format(net)}
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
+                                {/* Ledger Total Row */}
+                                <tr className="bg-slate-50 border-t-2 border-slate-300 font-extrabold text-slate-900">
+                                  <td className="p-3" colSpan={3}>Total</td>
+                                  <td className="p-3 text-right">{totalDebit > 0 ? money.format(totalDebit) : '—'}</td>
+                                  <td className="p-3 text-right">{totalCredit > 0 ? money.format(totalCredit) : '—'}</td>
+                                  <td className={`p-3 text-right ${totalNet >= 0 ? 'text-blue-700' : 'text-rose-700'}`}>
+                                    {totalNet >= 0 ? '+' : ''}{money.format(totalNet)}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              )
+            })()}
+
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col justify-between font-inter">
       <Header />
@@ -455,6 +1102,13 @@ export function FundsFlow({
             <div className="flex items-end gap-2 flex-wrap">
               <button className={styles.exportButton} onClick={exportToExcel} disabled={!data}>
                 <Download size={16} /> Export to Excel
+              </button>
+              <button
+                className={styles.exportButton}
+                style={{ backgroundColor: '#16a34a', color: '#fff', borderColor: '#15803d' }}
+                onClick={() => setShowDetailedCompliance(true)}
+              >
+                📊 Detailed Report
               </button>
               <PeriodForm orgId={orgId} companyId={companyId} from={from} to={to} isPending={isPending} startTransition={startTransition} />
             </div>

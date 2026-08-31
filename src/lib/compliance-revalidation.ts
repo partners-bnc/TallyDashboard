@@ -8,6 +8,7 @@ const reportPathByComplianceType: Record<string, `/dashboard/reports/${string}`>
   GST: '/dashboard/reports/duties-and-taxes',
   ACCOUNTS_PAYABLE: '/dashboard/reports/accounts-payable',
   OPEX: '/dashboard/reports/operating-expenditure',
+  CAPEX: '/dashboard/reports/capital-expenditure',
 }
 
 export function revalidateComplianceViews(complianceType: string) {

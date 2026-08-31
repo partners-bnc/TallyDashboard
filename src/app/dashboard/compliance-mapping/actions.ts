@@ -15,7 +15,7 @@ const payloadSchema = z.object({
 const genericPayloadSchema = z.object({
   orgId: z.string().uuid(),
   companyId: z.string().uuid(),
-  complianceType: z.enum(['PROMOTERS', 'GST', 'LOANS', 'ACCOUNTS_PAYABLE', 'OPEX']),
+  complianceType: z.enum(['PROMOTERS', 'GST', 'LOANS', 'ACCOUNTS_PAYABLE', 'OPEX', 'CAPEX']),
   selectedGroups: z.array(z.string().trim().min(1).max(255)).max(10000),
   ledgerDecisions: z.array(z.object({
     ledgerId: z.string().uuid(),
